@@ -42,7 +42,7 @@ jobs:
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
 
       - name: Setup Magic Nix Cache
-        uses: DeterminateColor/magic-nix-cache-action@v2
+        uses: DeterminateSystems/magic-nix-cache-action@v2
 
       - name: Build pi-primary Image
         if: github.event.inputs.target == 'both' || github.event.inputs.target == 'pi-primary' || github.event_name == 'push'
