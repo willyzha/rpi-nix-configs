@@ -66,19 +66,6 @@ This setup prevents wear while preserving convenience:
 
 ---
 
-## Secrets Management (Zero Secrets in Git)
-
-Sensitive credentials are read dynamically from `/persist/secrets/` on the target machine and ignored by Git:
-
-| Secret | Target Path | Purpose |
-| :--- | :--- | :--- |
-| User password hash | `/persist/secrets/pi-password-hash` | Login password for user `pi` (`mkpasswd -m sha-512`) |
-| Keepalived auth | `/persist/secrets/keepalived-auth.conf` | VRRP cluster authentication block |
-| WireGuard private key | `/persist/secrets/wireguard/private.key` | In-kernel WireGuard server private key |
-| Tailscale auth key | `/persist/secrets/tailscale.env` | (Optional) Automated enrollment key |
-
----
-
 ## Directory Structure
 
 ```
@@ -153,6 +140,40 @@ Initial setup is fully automated using flashable SD card images released directl
    - Connect immediately using your configured SSH key:
      ```bash
      ssh pi@192.168.1.11  # or pi@192.168.1.12
+     ```
+5. **Configure Secrets**:
+   Set up your secrets under `/persist/secrets/` (these remain on the machine and are never tracked by Git):
+
+   - **User Password Hash** (optional fallback if logging in with password instead of SSH key):
+     ```bash
+     mkpasswd -m sha-512 "your-chosen-password" | sudo tee /persist/secrets/pi-password-hash
+     sudo chmod 600 /persist/secrets/pi-password-hash
+     ```
+
+   - **Keepalived Cluster Authentication**:
+     ```bash
+     sudo tee /persist/secrets/keepalived-auth.conf << 'EOF'
+     authentication {
+       auth_type PASS
+       auth_pass your-cluster-password
+     }
+     EOF
+     sudo chmod 600 /persist/secrets/keepalived-auth.conf
+     ```
+
+   - **WireGuard Server Key** (for `pi-secondary`):
+     ```bash
+     wg genkey | sudo tee /persist/secrets/wireguard/private.key
+     sudo chmod 600 /persist/secrets/wireguard/private.key
+     ```
+
+   - **Restart Affected Services**:
+     ```bash
+     # On pi-primary:
+     sudo systemctl restart keepalived
+
+     # On pi-secondary:
+     sudo systemctl restart keepalived wireguard-wg0
      ```
 
 ---
