@@ -53,9 +53,6 @@
     }
   ];
 
-  # 7. Persist machine-id (if present)
-  environment.etc."machine-id".source = lib.mkIf (builtins.pathExists "/persist/etc/machine-id") "/persist/etc/machine-id";
-
   # 8. Ensure critical persistence directories exist on boot
   systemd.tmpfiles.rules = [
     "d /persist/etc/ssh 0755 root root -"

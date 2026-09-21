@@ -100,16 +100,17 @@
   # 4. Network UPS Tools (NUT) Server (~4MB RAM, CyberPower PR1500LCDRT2U)
   power.ups = {
     enable = true;
-    mode = "standalone";
+    mode = "netserver";
+    upsmon.enable = false;
     ups."cyberpower" = {
       driver = "usbhid-ups";
       port = "auto";
       description = "CyberPower PR1500LCDRT2U";
-      extraConfig = ''
-        vendorid = 0764
-        productid = 0601
-        pollonly
-      '';
+      directives = [
+        "vendorid = 0764"
+        "productid = 0601"
+        "pollonly"
+      ];
     };
     upsd = {
       enable = true;
