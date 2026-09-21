@@ -3,10 +3,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
-    nixos-hardware.url = "github:NixOS/nixos-hardware/master";
   };
 
-  outputs = { self, nixpkgs, nixos-hardware, ... }:
+  outputs = { self, nixpkgs, ... }:
     let
       system = "aarch64-linux";
     in {
@@ -15,7 +14,6 @@
         pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            nixos-hardware.nixosModules.raspberry-pi-3
             ./modules/sd-image.nix
             ./hosts/pi-primary/default.nix
           ];
@@ -25,7 +23,6 @@
         pi-secondary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            nixos-hardware.nixosModules.raspberry-pi-3
             ./modules/sd-image.nix
             ./hosts/pi-secondary/default.nix
           ];
