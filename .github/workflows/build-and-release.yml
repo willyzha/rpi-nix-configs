@@ -1,0 +1,83 @@
+name: Build & Release Flashable SD Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Host image to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - pi-primary
+          - pi-secondary
+
+jobs:
+  build:
+    name: Build SD Card Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for AArch64 emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            extra-platforms = aarch64-linux
+            experimental-features = nix-command flakes
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+
+      - name: Setup Magic Nix Cache
+        uses: DeterminateColor/magic-nix-cache-action@v2
+
+      - name: Build pi-primary Image
+        if: github.event.inputs.target == 'both' || github.event.inputs.target == 'pi-primary' || github.event_name == 'push'
+        run: |
+          echo "==> Building SD card image for pi-primary..."
+          nix build .#nixosConfigurations.pi-primary.config.system.build.sdImage -o result-primary
+          cp result-primary/sd-image/*.img.zst ./pi-primary-nixos.img.zst
+
+      - name: Build pi-secondary Image
+        if: github.event.inputs.target == 'both' || github.event.inputs.target == 'pi-secondary' || github.event_name == 'push'
+        run: |
+          echo "==> Building SD card image for pi-secondary..."
+          nix build .#nixosConfigurations.pi-secondary.config.system.build.sdImage -o result-secondary
+          cp result-secondary/sd-image/*.img.zst ./pi-secondary-nixos.img.zst
+
+      - name: Generate Checksums
+        run: |
+          sha256sum *.img.zst > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Create GitHub Release and Upload Images
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            *.img.zst
+            sha256sums.txt
+          generate_release_notes: true
+
+      - name: Upload Artifacts (Workflow Dispatch)
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: raspberry-pi-nixos-images
+          path: |
+            *.img.zst
+            sha256sums.txt
+          retention-days: 7
