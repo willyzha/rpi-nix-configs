@@ -26,6 +26,15 @@
     ];
   };
 
+  # Fix: modprobe: FATAL: Module ahci not found in directory
+  # On Raspberry Pi kernels, PC/SATA modules like ahci are not present.
+  # This overlay instructs makeModulesClosure to allow missing modules.
+  nixpkgs.overlays = [
+    (_final: super: {
+      makeModulesClosure = x: super.makeModulesClosure (x // { allowMissing = true; });
+    })
+  ];
+
   # Enable Raspberry Pi hardware support
   hardware.enableRedistributableFirmware = true;
 }
