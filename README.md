@@ -13,22 +13,22 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **Keepalived**: VRRP high-availability `MASTER` (Priority `105`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - **NUT Server**: Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
   - **Glances**: System and hardware resource monitoring daemon (Port `61208`).
+  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
   - **Portainer**: Web interface for managing Docker containers (Ports `8000`, `9000`).
   - **UPSWake**: Wake-on-LAN service polling NUT server status.
   - **Python DLight**: MQTT integration bridge for smart lighting.
-  - **Rclone**: Cloud storage synchronization service and web interface (Port `5572`).
 
 ### `pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - **WireGuard**: VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
   - **Keepalived**: VRRP high-availability `BACKUP` (Priority `100`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - **Glances**: System and hardware resource monitoring daemon (Port `61208`).
+  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:
   - **SWAG**: Failover reverse proxy (Port `443`).
   - **Portainer**: Web interface for managing Docker containers (Ports `8000`, `9000`).
-  - **Rclone**: Cloud storage synchronization service and web interface (Port `5572`).
 
 ---
 
@@ -167,13 +167,37 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo chmod 600 /persist/secrets/wireguard/private.key
      ```
 
-   - **Restart Affected Services**:
+   - **Restic Cloud Backup (Dropbox via Rclone)**:
+     Set up your Restic repository encryption password and Rclone config:
+     ```bash
+     # Set Restic encryption password:
+     echo "your-strong-backup-password" | sudo tee /persist/secrets/restic-password
+     sudo chmod 600 /persist/secrets/restic-password
+
+     # Copy or create your rclone.conf containing your [dropbox] remote:
+     sudo tee /persist/secrets/rclone.conf << 'EOF'
+     [dropbox]
+     type = dropbox
+     token = {"access_token":"...","token_type":"bearer","refresh_token":"...","expiry":"..."}
+     EOF
+     sudo chmod 600 /persist/secrets/rclone.conf
+     ```
+
+   - **Restart Affected Services & Test Backup**:
      ```bash
      # On pi-primary:
      sudo systemctl restart keepalived
+     sudo systemctl start restic-backups-persist.service
 
      # On pi-secondary:
      sudo systemctl restart keepalived wireguard-wg0
+     sudo systemctl start restic-backups-persist.service
+
+     # View backup logs:
+     sudo journalctl -u restic-backups-persist.service -f
+
+     # View snapshots:
+     restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
      ```
 
 ---

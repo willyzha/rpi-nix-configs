@@ -137,33 +137,33 @@
         ];
       };
 
-      # Rclone GUI & sync
-      rclone = {
-        image = "rclone/rclone:latest";
-        autoStart = true;
-        ports = [
-          "5572:5572"
-        ];
-        environment = {
-          TZ = "America/Los_Angeles";
-          PUID = "1000";
-          PGID = "1000";
-        };
-        volumes = [
-          "/persist/docker/rclone/config:/config"
-          "/persist/docker/rclone/downloads:/downloads"
-          "/persist/home/pi:/data:ro"
-        ];
-        extraOptions = [
-          "--network=host"
-          "--tmpfs=/tmp"
-        ];
-        cmd = [
-          "-c"
-          "crond && crontab /config/synccron && rclone rcd --rc-web-gui --rc-addr :5572 --rc-user admin --rc-pass /persist/secrets/rclone-pass"
-        ];
-      };
     };
+  };
+
+  # Native Restic backup of /persist to Dropbox via Rclone
+  services.restic.backups.persist = {
+    initialize = true;
+    repository = "rclone:dropbox:backups/pi-secondary";
+    rcloneConfigFile = "/persist/secrets/rclone.conf";
+    passwordFile = "/persist/secrets/restic-password";
+    paths = [
+      "/persist"
+    ];
+    exclude = [
+      "/persist/var/lib/docker"
+    ];
+    extraBackupArgs = [
+      "--cache-dir=/tmp/restic-cache"
+    ];
+    timerConfig = {
+      OnCalendar = "03:30"; # Staggered 30 mins after primary
+      Persistent = true;
+    };
+    pruneOpts = [
+      "--keep-daily 7"
+      "--keep-weekly 4"
+      "--keep-monthly 6"
+    ];
   };
 
   system.stateVersion = "24.05";

@@ -74,6 +74,8 @@
     pciutils
     usbutils
     jq
+    restic
+    rclone
   ];
 
   # Allow unfree packages if needed
