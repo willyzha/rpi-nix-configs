@@ -118,6 +118,10 @@
         { address = "0.0.0.0"; port = 3493; }
       ];
     };
+    users.monuser = {
+      passwordFile = "/persist/secrets/nut-monuser-password";
+      upsmon = "master";
+    };
   };
 
   # 5. Glances System Monitor (~45MB RAM, runs natively via systemd)
