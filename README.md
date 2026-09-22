@@ -167,6 +167,12 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo chmod 600 /persist/secrets/wireguard/private.key
      ```
 
+   - **NUT Server Monitoring Password** (for `pi-primary`, used by `upswake` container to query `localhost:3493`):
+     ```bash
+     echo "your-nut-monuser-password" | sudo tee /persist/secrets/nut-monuser-password
+     sudo chmod 600 /persist/secrets/nut-monuser-password
+     ```
+
    - **Restic Cloud Backup (Dropbox via Rclone)**:
      Set up your Restic repository encryption password and Rclone config:
      ```bash
