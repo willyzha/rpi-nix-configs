@@ -128,6 +128,13 @@
           "/persist/docker/swag/logrotate/logrotate.d/nginx:/etc/logrotate.d/nginx"
           "/persist/docker/swag/logrotate/logrotate.d/php-fpm:/etc/logrotate.d/php-fpm"
         ];
+        # Prevent runtime SD card writes: container root is read-only, logs & runtime in RAM
+        extraOptions = [
+          "--read-only"
+          "--tmpfs=/tmp:exec"
+          "--tmpfs=/run:exec"
+          "--tmpfs=/config/log:size=16M"
+        ];
       };
 
       # Rclone GUI & sync
