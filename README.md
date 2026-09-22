@@ -17,7 +17,6 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 - **Docker Containers**:
   - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
   - **UPSWake**: Wake-on-LAN service polling NUT server status.
-  - **Python DLight**: MQTT integration bridge for smart lighting.
 
 ### `pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
 - **Native Services**:
