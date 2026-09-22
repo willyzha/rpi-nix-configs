@@ -156,6 +156,7 @@
         ];
         extraOptions = [
           "--network=host"
+          "--tmpfs=/tmp"
         ];
         cmd = [
           "-c"
