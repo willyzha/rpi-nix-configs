@@ -16,7 +16,6 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
-  - **Portainer**: Web interface for managing Docker containers (Ports `8000`, `9000`).
   - **UPSWake**: Wake-on-LAN service polling NUT server status.
   - **Python DLight**: MQTT integration bridge for smart lighting.
 
@@ -28,7 +27,6 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:
   - **SWAG**: Failover reverse proxy (Port `443`).
-  - **Portainer**: Web interface for managing Docker containers (Ports `8000`, `9000`).
 
 ---
 

@@ -142,20 +142,6 @@
   virtualisation.oci-containers = {
     backend = "docker";
     containers = {
-      # Portainer CE
-      portainer = {
-        image = "portainer/portainer-ce:alpine";
-        autoStart = true;
-        ports = [
-          "8000:8000"
-          "9000:9000"
-        ];
-        volumes = [
-          "/var/run/docker.sock:/var/run/docker.sock"
-          "/persist/docker/portainer/data:/data"
-        ];
-      };
-
       # SWAG (Nginx reverse proxy + Certbot)
       swag = {
         image = "ghcr.io/linuxserver/swag:latest";
