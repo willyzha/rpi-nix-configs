@@ -193,26 +193,6 @@
         cmd = [ "serve" ];
       };
 
-      # Python DLight MQTT bridge
-      python-container = {
-        image = "python:3";
-        autoStart = true;
-        environment = {
-          TZ = "America/Los_Angeles";
-          MQTT_ADDR = "192.168.1.10";
-          DLIGHT_ADDR = "192.168.1.39";
-          PYTHONDONTWRITEBYTECODE = "1";
-        };
-        volumes = [
-          "/persist/docker/python_container:/usr/src/scripts"
-        ];
-        extraOptions = [
-          "--network=host"
-          "--tmpfs=/tmp:exec"
-        ];
-        cmd = [ "sh" "/usr/src/scripts/run.sh" ];
-      };
-
     };
   };
 
