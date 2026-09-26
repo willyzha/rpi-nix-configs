@@ -135,6 +135,13 @@
               ${pkgs.openssh}/bin/ssh-keygen -t rsa -b 4096 -f "$TMP_PERSIST/etc/ssh/ssh_host_rsa_key" -N "" -q
             fi
 
+            # Pre-generate WireGuard keys if missing
+            if [ ! -f "$TMP_PERSIST/secrets/wireguard/private.key" ]; then
+              ${pkgs.wireguard-tools}/bin/wg genkey > "$TMP_PERSIST/secrets/wireguard/private.key"
+              chmod 600 "$TMP_PERSIST/secrets/wireguard/private.key"
+              ${pkgs.wireguard-tools}/bin/wg pubkey < "$TMP_PERSIST/secrets/wireguard/private.key" > "$TMP_PERSIST/secrets/wireguard/public.key"
+            fi
+
             # Starter config stubs to avoid startup failures on optional secrets
             if [ ! -f "$TMP_PERSIST/secrets/keepalived-auth.conf" ]; then
               cat <<'EOF' > "$TMP_PERSIST/secrets/keepalived-auth.conf"
