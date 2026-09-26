@@ -175,13 +175,17 @@ EOF
       ACTION="''${1:-switch}"
       FLAKE_TARGET="''${2:-.#}"
 
-      echo "==> Remounting / and /boot/firmware as Read-Write..."
+      echo "==> Remounting / as Read-Write..."
       mount -o remount,rw /
-      mount -o remount,rw /boot/firmware
+      if mountpoint -q /boot/firmware; then
+        mount -o remount,rw /boot/firmware || true
+      fi
 
       cleanup() {
-        echo "==> Remounting / and /boot/firmware as Read-Only..."
-        mount -o remount,ro /boot/firmware || true
+        echo "==> Restoring partitions to Read-Only..."
+        if mountpoint -q /boot/firmware; then
+          mount -o remount,ro /boot/firmware || true
+        fi
         mount -o remount,ro / || true
       }
       trap cleanup EXIT
