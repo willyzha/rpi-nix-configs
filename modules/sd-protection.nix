@@ -102,17 +102,18 @@
         echo "==> Root partition is $ROOT_PART on device $DEV"
 
         if [ -b "$DEV" ] && ! ${pkgs.util-linux}/bin/blkid -L PERSIST >/dev/null 2>&1; then
-          echo "==> Auto-initializing PERSIST partition on $DEV..."
+          echo "==> Auto-initializing SD card layout (12GB system, remaining PERSIST)..."
 
-          # Find start sector of the largest unpartitioned region (at the end of the SD card)
-          START_SECTOR=$(${pkgs.util-linux}/bin/sfdisk -F "$DEV" | ${pkgs.gawk}/bin/awk '$3 ~ /^[0-9]+$/ {print $1, $3}' | ${pkgs.coreutils}/bin/sort -k2 -n | ${pkgs.coreutils}/bin/tail -n 1 | ${pkgs.gawk}/bin/awk '{print $1}')
+          # 1. Expand Partition 2 (root system) to 12GB
+          printf "Yes\n" | ${pkgs.parted}/bin/parted ---pretend-input-tty "$DEV" resizepart 2 12GB || true
+          ${pkgs.parted}/bin/partprobe "$DEV" || ${pkgs.util-linux}/bin/partx -u "$DEV" || true
+          ${pkgs.util-linux}/bin/mount -o remount,rw / || true
+          ${pkgs.e2fsprogs}/bin/resize2fs "$ROOT_PART" || true
 
-          if [ -n "$START_SECTOR" ]; then
-            echo "''${START_SECTOR},,L" | ${pkgs.util-linux}/bin/sfdisk --force --no-reread --append "$DEV" || true
-            ${pkgs.parted}/bin/partprobe "$DEV" || true
-            ${pkgs.util-linux}/bin/partx -a "$DEV" || true
-            sleep 2
-          fi
+          # 2. Create Partition 3 (PERSIST) with remaining SD card space
+          ${pkgs.parted}/bin/parted -s "$DEV" mkpart primary ext4 12GB 100% || true
+          ${pkgs.parted}/bin/partprobe "$DEV" || ${pkgs.util-linux}/bin/partx -a "$DEV" || true
+          sleep 2
 
           PART="''${DEV}p3"
           if [ ! -b "$PART" ]; then
