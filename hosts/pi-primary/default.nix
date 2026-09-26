@@ -17,7 +17,7 @@
       }];
     };
     defaultGateway = "192.168.1.1";
-    nameservers = [ "1.1.1.1" "127.0.0.1" ];
+    nameservers = [ "192.168.1.1" "1.1.1.1" "127.0.0.1" ];
     firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
   };
 
