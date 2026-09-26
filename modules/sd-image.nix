@@ -18,11 +18,15 @@
   boot.postBootCommands = lib.mkAfter ''
     if [ -f /nix-path-registration ]; then
       set -euo pipefail
+      echo "==> Remounting / as Read-Write for initial store registration..."
+      mount -o remount,rw / || true
       echo "==> Registering initial Nix store closure..."
       ${config.nix.package.out}/bin/nix-store --load-db < /nix-path-registration || true
       touch /etc/NIXOS || true
       ${config.nix.package.out}/bin/nix-env -p /nix/var/nix/profiles/system --set /run/current-system || true
       rm -f /nix-path-registration || true
+      echo "==> Restoring / to Read-Only..."
+      mount -o remount,ro / || true
     fi
   '';
 }

@@ -5,13 +5,12 @@
   # SD Card Wear Prevention: Read-Only Partitions & Volatile RAM
   # ---------------------------------------------------------------------------
 
-  # 1. Mount root (/) with noatime. All OS binaries and Nix store are read-only
-  #    by default in NixOS (boot.readOnlyNixStore = true). With volatile journald,
-  #    tmpfs /tmp, and zram swap, runtime writes to SD card are prevented.
+  # 1. Mount root (/) as Read-Only from the SD card.
+  #    All system execution is read-only. Zero SD card wear during operation.
   fileSystems."/" = lib.mkDefault {
     device = "/dev/disk/by-label/NIXOS_SD";
     fsType = "ext4";
-    options = [ "noatime" ];
+    options = [ "ro" "noatime" ];
   };
 
   # 2. Mount /boot/firmware (RPi boot files) as read-only.
