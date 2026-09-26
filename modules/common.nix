@@ -53,15 +53,14 @@
     };
   };
 
+  # Allow user passwords to be modified via passwd (survives reboots on ext4 root)
+  users.mutableUsers = true;
+
   # Default user 'pi'
   users.users.pi = {
     isNormalUser = true;
     home = "/home/pi";
     extraGroups = [ "wheel" "docker" ];
-    # Read password hash from persistent storage (untracked by git)
-    # Generate on target: mkpasswd -m sha-512 "your-password" > /persist/secrets/pi-password-hash
-    # chmod 600 /persist/secrets/pi-password-hash
-    hashedPasswordFile = lib.mkIf (builtins.pathExists "/persist/secrets/pi-password-hash") "/persist/secrets/pi-password-hash";
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFz7zweHTuKuHEQv7xtzH8I3T1Ch+Mafg+S4a00hcniR willyzha@willy-dev"
     ];
