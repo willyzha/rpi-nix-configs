@@ -77,6 +77,7 @@
     jq
     restic
     rclone
+    wireguard-tools
   ];
 
   # Allow unfree packages if needed
