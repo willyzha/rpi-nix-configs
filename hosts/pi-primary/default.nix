@@ -10,14 +10,6 @@
 
   networking = {
     hostName = "pi-primary";
-    interfaces.eth0 = {
-      ipv4.addresses = [{
-        address = "192.168.1.11";
-        prefixLength = 24;
-      }];
-    };
-    defaultGateway = "192.168.1.1";
-    nameservers = [ "192.168.1.1" "1.1.1.1" "127.0.0.1" ];
     firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
   };
 

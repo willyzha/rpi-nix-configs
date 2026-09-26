@@ -10,14 +10,6 @@
 
   networking = {
     hostName = "pi-secondary";
-    interfaces.eth0 = {
-      ipv4.addresses = [{
-        address = "192.168.1.12";
-        prefixLength = 24;
-      }];
-    };
-    defaultGateway = "192.168.1.1";
-    nameservers = [ "192.168.1.1" "192.168.1.11" "1.1.1.1" ];
 
     # In-Kernel WireGuard VPN server (0 MB daemon RAM, runs directly in Linux kernel)
     wireguard.interfaces.wg0 = {
