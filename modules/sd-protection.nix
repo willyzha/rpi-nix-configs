@@ -36,9 +36,16 @@
     RuntimeMaxUse=32M
   '';
 
-  # 5. Put /tmp on tmpfs in RAM
+  # 5. Put /tmp and /var/cache on tmpfs in RAM
   boot.tmp.useTmpfs = true;
   boot.tmp.tmpfsSize = "256M";
+
+  # Volatile cache in RAM: prevents wear and allows services with CacheDirectory= to start on read-only root
+  fileSystems."/var/cache" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=64M" ];
+  };
 
   # 6. Persist SSH host keys so SSH client fingerprints don't change on reboot
   services.openssh.hostKeys = [
@@ -96,11 +103,16 @@
 
         if [ -b "$DEV" ] && ! ${pkgs.util-linux}/bin/blkid -L PERSIST >/dev/null 2>&1; then
           echo "==> Auto-initializing PERSIST partition on $DEV..."
-          # Append partition 3 using sfdisk to fill remaining SD card space
-          echo ",,L" | ${pkgs.util-linux}/bin/sfdisk --append "$DEV" || true
-          ${pkgs.parted}/bin/partprobe "$DEV" || true
-          ${pkgs.util-linux}/bin/partx -u "$DEV" || true
-          sleep 2
+
+          # Find start sector of the largest unpartitioned region (at the end of the SD card)
+          START_SECTOR=$(${pkgs.util-linux}/bin/sfdisk -F "$DEV" | ${pkgs.gawk}/bin/awk '$3 ~ /^[0-9]+$/ {print $1, $3}' | ${pkgs.coreutils}/bin/sort -k2 -n | ${pkgs.coreutils}/bin/tail -n 1 | ${pkgs.gawk}/bin/awk '{print $1}')
+
+          if [ -n "$START_SECTOR" ]; then
+            echo "''${START_SECTOR},,L" | ${pkgs.util-linux}/bin/sfdisk --force --no-reread --append "$DEV" || true
+            ${pkgs.parted}/bin/partprobe "$DEV" || true
+            ${pkgs.util-linux}/bin/partx -a "$DEV" || true
+            sleep 2
+          fi
 
           PART="''${DEV}p3"
           if [ ! -b "$PART" ]; then
@@ -158,6 +170,11 @@ EOF
             rmdir "$TMP_PERSIST" || true
           fi
         fi
+
+        # Pre-create mount point directories on root filesystem for bind mounts
+        ${pkgs.util-linux}/bin/mount -o remount,rw / || true
+        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker
+        ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
         ${pkgs.systemd}/bin/udevadm settle || true
       '';
