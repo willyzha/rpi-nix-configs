@@ -20,6 +20,7 @@
       experimental-features = [ "nix-command" "flakes" ];
       auto-optimise-store = false; # Avoid heavy disk writes on SD
       warn-dirty = false;
+      trusted-users = [ "root" "@wheel" ];
     };
     gc = {
       automatic = false; # Manual GC preferred to avoid unexpected SD writes
@@ -65,6 +66,9 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFz7zweHTuKuHEQv7xtzH8I3T1Ch+Mafg+S4a00hcniR willyzha@willy-dev"
     ];
   };
+
+  # Root SSH key (for remote nixos-rebuild deployments)
+  users.users.root.openssh.authorizedKeys.keys = config.users.users.pi.openssh.authorizedKeys.keys;
 
   # Passwordless sudo for wheel group
   security.sudo = {

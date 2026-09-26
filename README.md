@@ -97,39 +97,30 @@ When formatting or flashing an SD card for these configurations, partition label
 
 ## Applying Updates
 
-### Method 1: Remote Rebuild from Your Computer (Fast & Recommended)
+### Native Rebuild Directly on the Pi (Zero Setup on Your Computer)
 
-Because the Raspberry Pi 3B has a modest CPU and 1 GB of RAM, running the Nix evaluator on your computer/laptop is **10x faster (~10 seconds)** and avoids memory pressure on the Pi:
-
-Run from your computer inside this repository:
+You do **not** need Nix, Docker, or any special tools installed on your computer. You can run the rebuild directly on the Pi via SSH:
 
 ```bash
-# For pi-primary:
-ssh pi@pi-primary.local "sudo mount -o remount,rw /" && \
-nixos-rebuild switch --flake .#pi-primary --target-host pi@pi-primary.local --use-remote-sudo && \
-ssh pi@pi-primary.local "sudo mount -o remount,ro /"
-
-# For pi-secondary:
-ssh pi@pi-secondary.local "sudo mount -o remount,rw /" && \
-nixos-rebuild switch --flake .#pi-secondary --target-host pi@pi-secondary.local --use-remote-sudo && \
-ssh pi@pi-secondary.local "sudo mount -o remount,ro /"
-```
-
----
-
-### Method 2: Local Rebuild Directly on the Pi
-
-If building directly on the Raspberry Pi itself via SSH:
-
-```bash
+# On pi-primary:
 sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-primary
+
+# On pi-secondary:
+sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-secondary
 ```
 
-The `rpi-rebuild` command automatically handles:
-1. `mount -o remount,rw /` and `mount -o remount,rw /boot/firmware`
-2. `nixos-rebuild switch --refresh --flake github:willyzha/rpi-nix-configs#pi-primary`
-3. Trapped cleanup: restores `/boot/firmware` and `/` to `ro,noatime`
-*(Note: Native evaluation on the Pi 3B takes ~3–4 minutes).*
+Or trigger it remotely from any computer with a standard SSH command:
+
+```bash
+ssh pi@pi-primary.local "sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-primary"
+```
+
+The built-in `rpi-rebuild` helper script automatically handles the entire lifecycle:
+1. Remounts `/` and `/boot/firmware` as read-write (`rw`).
+2. Ensures the `nix-daemon` service is active and listening.
+3. **Temporarily stops Docker** (freeing ~500 MB of RAM so the Nix evaluation fits entirely in physical RAM without swap thrashing or CPU freezing).
+4. Pulls the latest Git commit and rebuilds the NixOS generation.
+5. **Trapped cleanup**: Automatically restarts Docker and restores partitions back down to zero-wear read-only (`ro,noatime`), even if interrupted or on error.
 
 ---
 

@@ -47,6 +47,13 @@
     options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=64M" ];
   };
 
+  # Volatile daemon socket in RAM: allows nix-daemon.socket to listen even when root is read-only
+  fileSystems."/nix/var/nix/daemon-socket" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=1M" ];
+  };
+
   # 6. Persist SSH host keys so SSH client fingerprints don't change on reboot
   services.openssh.hostKeys = [
     {
@@ -224,7 +231,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker
+        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket
         ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
         ${pkgs.systemd}/bin/udevadm settle || true
@@ -234,7 +241,8 @@ EOF
 
   # 10. Helper command to safely rebuild & switch generations.
   #     Automatically remounts / and /boot/firmware read-write,
-  #     runs the nixos rebuild, and locks them back down as read-only.
+  #     stops Docker to free ~500MB RAM, runs the nixos rebuild,
+  #     restarts Docker, and locks partitions back down as read-only.
   environment.systemPackages = [
     (pkgs.writeShellScriptBin "rpi-rebuild" ''
       #!/usr/bin/env bash
@@ -242,6 +250,7 @@ EOF
 
       ACTION="''${1:-switch}"
       FLAKE_TARGET="''${2:-.#}"
+      shift 2 2>/dev/null || true
 
       echo "==> Remounting / as Read-Write..."
       mount -o remount,rw /
@@ -249,17 +258,31 @@ EOF
         mount -o remount,rw /boot/firmware || true
       fi
 
+      # Ensure nix-daemon is alive and listening
+      systemctl restart nix-daemon.socket nix-daemon.service || true
+
+      DOCKER_WAS_ACTIVE=false
+      if systemctl is-active --quiet docker; then
+        echo "==> Temporarily stopping Docker to free up RAM (~500MB)..."
+        systemctl stop docker || true
+        DOCKER_WAS_ACTIVE=true
+      fi
+
       cleanup() {
+        if [ "$DOCKER_WAS_ACTIVE" = "true" ]; then
+          echo "==> Restarting Docker service..."
+          systemctl start docker || true
+        fi
         echo "==> Restoring partitions to Read-Only..."
         if mountpoint -q /boot/firmware; then
           mount -o remount,ro /boot/firmware || true
         fi
         mount -o remount,ro / || true
       }
-      trap cleanup EXIT
+      trap cleanup EXIT INT TERM
 
       echo "==> Applying NixOS configuration ($ACTION)..."
-      nixos-rebuild "$ACTION" --refresh --flake "$FLAKE_TARGET"
+      nixos-rebuild "$ACTION" --refresh --flake "$FLAKE_TARGET" "$@"
 
       echo "==> Update complete. Partitions restored to Read-Only."
     '')
