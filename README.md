@@ -97,16 +97,39 @@ When formatting or flashing an SD card for these configurations, partition label
 
 ## Applying Updates
 
-To update or apply changes on a running Pi:
+### Method 1: Remote Rebuild from Your Computer (Fast & Recommended)
+
+Because the Raspberry Pi 3B has a modest CPU and 1 GB of RAM, running the Nix evaluator on your computer/laptop is **10x faster (~10 seconds)** and avoids memory pressure on the Pi:
+
+Run from your computer inside this repository:
 
 ```bash
-sudo rpi-rebuild switch .#pi-primary
+# For pi-primary:
+ssh pi@pi-primary.local "sudo mount -o remount,rw /" && \
+nixos-rebuild switch --flake .#pi-primary --target-host pi@pi-primary.local --use-remote-sudo && \
+ssh pi@pi-primary.local "sudo mount -o remount,ro /"
+
+# For pi-secondary:
+ssh pi@pi-secondary.local "sudo mount -o remount,rw /" && \
+nixos-rebuild switch --flake .#pi-secondary --target-host pi@pi-secondary.local --use-remote-sudo && \
+ssh pi@pi-secondary.local "sudo mount -o remount,ro /"
 ```
 
-The script safely handles:
-1. `mount -o remount,rw /nix` and `mount -o remount,rw /boot/firmware`
-2. `nixos-rebuild switch --flake .#pi-primary`
-3. Trapped cleanup: `mount -o remount,ro /boot/firmware` and `mount -o remount,ro /nix`
+---
+
+### Method 2: Local Rebuild Directly on the Pi
+
+If building directly on the Raspberry Pi itself via SSH:
+
+```bash
+sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-primary
+```
+
+The `rpi-rebuild` command automatically handles:
+1. `mount -o remount,rw /` and `mount -o remount,rw /boot/firmware`
+2. `nixos-rebuild switch --refresh --flake github:willyzha/rpi-nix-configs#pi-primary`
+3. Trapped cleanup: restores `/boot/firmware` and `/` to `ro,noatime`
+*(Note: Native evaluation on the Pi 3B takes ~3–4 minutes).*
 
 ---
 
