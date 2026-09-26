@@ -5,19 +5,20 @@
   # SD Card Wear Prevention: Read-Only Partitions & Volatile RAM
   # ---------------------------------------------------------------------------
 
-  # 1. Mount root (/) as Read-Only from the SD card.
-  #    All system execution is read-only. Zero SD card wear during operation.
+  # 1. Mount root (/) with noatime. All OS binaries and Nix store are read-only
+  #    by default in NixOS (boot.readOnlyNixStore = true). With volatile journald,
+  #    tmpfs /tmp, and zram swap, runtime writes to SD card are prevented.
   fileSystems."/" = lib.mkDefault {
     device = "/dev/disk/by-label/NIXOS_SD";
     fsType = "ext4";
-    options = [ "ro" "noatime" ];
+    options = [ "noatime" ];
   };
 
   # 2. Mount /boot/firmware (RPi boot files) as read-only.
   fileSystems."/boot/firmware" = {
     device = "/dev/disk/by-label/FIRMWARE";
     fsType = "vfat";
-    options = [ "ro" "noatime" "fmask=0137" "dmask=0027" ];
+    options = [ "ro" "noatime" "nofail" "fmask=0137" "dmask=0027" ];
   };
 
   # 3. Mount /persist for state that MUST survive reboots
@@ -25,7 +26,7 @@
   fileSystems."/persist" = {
     device = "/dev/disk/by-label/PERSIST";
     fsType = "ext4";
-    options = [ "noatime" ];
+    options = [ "noatime" "nofail" "x-systemd.device-timeout=5s" ];
     neededForBoot = false;
   };
 
@@ -66,37 +67,93 @@
 
   # 9. Automatic first-boot initialization for /persist
   #    Detects unallocated space on the SD card, creates partition 3, formats it,
-  #    and initializes directories and SSH host keys automatically.
+  #    and initializes directories and SSH host keys BEFORE local-fs.target.
   systemd.services.init-persist = {
     description = "Auto-initialize PERSIST partition on first boot";
-    wantedBy = [ "multi-user.target" ];
-    unitConfig.ConditionPathExists = "!/dev/disk/by-label/PERSIST";
+    unitConfig = {
+      DefaultDependencies = false;
+      ConditionPathExists = "!/dev/disk/by-label/PERSIST";
+    };
+    after = [ "systemd-udev-settle.service" ];
+    before = [ "local-fs.target" ];
+    wantedBy = [ "local-fs.target" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = pkgs.writeShellScript "init-persist" ''
         set -euo pipefail
-        DEV="/dev/mmcblk0"
+
+        # Determine root partition and parent disk
+        ROOT_PART=$(${pkgs.util-linux}/bin/findmnt -n -o SOURCE / 2>/dev/null || true)
+        if [ -z "$ROOT_PART" ]; then
+          ROOT_PART="/dev/mmcblk0p2"
+        fi
+        DEV=$(${pkgs.util-linux}/bin/lsblk -npo PKNAME "$ROOT_PART" 2>/dev/null || true)
+        if [ -z "$DEV" ]; then
+          DEV="/dev/mmcblk0"
+        fi
+
+        echo "==> Root partition is $ROOT_PART on device $DEV"
+
         if [ -b "$DEV" ] && ! ${pkgs.util-linux}/bin/blkid -L PERSIST >/dev/null 2>&1; then
           echo "==> Auto-initializing PERSIST partition on $DEV..."
-          mount -o remount,rw / || true
-          ${pkgs.parted}/bin/parted -s "$DEV" mkpart primary ext4 5500MiB 100% || true
+          # Append partition 3 using sfdisk to fill remaining SD card space
+          echo ",,L" | ${pkgs.util-linux}/bin/sfdisk --append "$DEV" || true
+          ${pkgs.parted}/bin/partprobe "$DEV" || true
           ${pkgs.util-linux}/bin/partx -u "$DEV" || true
           sleep 2
+
           PART="''${DEV}p3"
-          if [ -b "$PART" ]; then
-            ${pkgs.e2fsprogs}/bin/mkfs.ext4 -F -L PERSIST "$PART"
-            mkdir -p /persist
-            mount "$PART" /persist
-            mkdir -p /persist/secrets /persist/etc/ssh /persist/var/lib/docker /persist/var/lib/tailscale /persist/var/lib/AdGuardHome
-            if [ ! -f /persist/etc/ssh/ssh_host_ed25519_key ]; then
-              ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f /persist/etc/ssh/ssh_host_ed25519_key -N ""
-              ${pkgs.openssh}/bin/ssh-keygen -t rsa -b 4096 -f /persist/etc/ssh/ssh_host_rsa_key -N ""
-            fi
-            umount /persist || true
+          if [ ! -b "$PART" ]; then
+            PART="''${DEV}3"
           fi
-          mount -o remount,ro / || true
+
+          if [ -b "$PART" ]; then
+            echo "==> Formatting $PART as ext4 with label PERSIST..."
+            ${pkgs.e2fsprogs}/bin/mkfs.ext4 -F -L PERSIST "$PART"
+            ${pkgs.systemd}/bin/udevadm trigger --subsystem-match=block || true
+            ${pkgs.systemd}/bin/udevadm settle || true
+            sleep 1
+
+            TMP_PERSIST="/mnt/init_persist"
+            mkdir -p "$TMP_PERSIST"
+            mount "$PART" "$TMP_PERSIST"
+
+            mkdir -p \
+              "$TMP_PERSIST/secrets" \
+              "$TMP_PERSIST/secrets/wireguard" \
+              "$TMP_PERSIST/etc/ssh" \
+              "$TMP_PERSIST/var/lib/docker" \
+              "$TMP_PERSIST/var/lib/tailscale" \
+              "$TMP_PERSIST/var/lib/AdGuardHome" \
+              "$TMP_PERSIST/docker"
+
+            chmod 700 "$TMP_PERSIST/secrets" "$TMP_PERSIST/secrets/wireguard"
+
+            # Pre-generate SSH host keys if missing
+            if [ ! -f "$TMP_PERSIST/etc/ssh/ssh_host_ed25519_key" ]; then
+              ${pkgs.openssh}/bin/ssh-keygen -t ed25519 -f "$TMP_PERSIST/etc/ssh/ssh_host_ed25519_key" -N "" -q
+              ${pkgs.openssh}/bin/ssh-keygen -t rsa -b 4096 -f "$TMP_PERSIST/etc/ssh/ssh_host_rsa_key" -N "" -q
+            fi
+
+            # Starter config stubs to avoid startup failures on optional secrets
+            if [ ! -f "$TMP_PERSIST/secrets/keepalived-auth.conf" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/keepalived-auth.conf"
+# VRRP authentication config (optional)
+EOF
+            fi
+
+            if [ ! -f "$TMP_PERSIST/secrets/nut-monuser-password" ]; then
+              echo "changeme" > "$TMP_PERSIST/secrets/nut-monuser-password"
+              chmod 600 "$TMP_PERSIST/secrets/nut-monuser-password"
+            fi
+
+            umount "$TMP_PERSIST"
+            rmdir "$TMP_PERSIST" || true
+          fi
         fi
+
+        ${pkgs.systemd}/bin/udevadm settle || true
       '';
     };
   };
