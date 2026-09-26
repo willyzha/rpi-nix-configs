@@ -90,6 +90,8 @@
     restic
     rclone
     wireguard-tools
+    psmisc
+    lsof
   ];
 
   # Allow unfree packages if needed
