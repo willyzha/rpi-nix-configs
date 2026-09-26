@@ -157,14 +157,16 @@
           PUID = "1000";
           PGID = "1000";
           TZ = "America/Los_Angeles";
-          URL = "example.com";
           SUBDOMAINS = "wildcard";
           VALIDATION = "dns";
           DNSPLUGIN = "cloudflare";
           PROPAGATION = "30";
-          EMAIL = "admin@example.com";
           DISABLE_F2B = "true";
         };
+        # Load sensitive domain URL and contact email from persistent secret file (untracked by git)
+        environmentFiles = [
+          "/persist/secrets/swag.env"
+        ];
         volumes = [
           "/persist/docker/swag/config:/config"
           "/persist/docker/swag/logrotate/logrotate.conf:/etc/logrotate.conf"
