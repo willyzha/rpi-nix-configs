@@ -7,10 +7,10 @@
 
   # 1. Mount root (/) as Read-Only from the SD card.
   #    All system execution is read-only. Zero SD card wear during operation.
-  fileSystems."/" = lib.mkDefault {
+  fileSystems."/" = {
     device = "/dev/disk/by-label/NIXOS_SD";
     fsType = "ext4";
-    options = [ "ro" "noatime" ];
+    options = lib.mkForce [ "ro" "noatime" ];
   };
 
   # 2. Mount /boot/firmware (RPi boot files) as read-only.
