@@ -167,6 +167,48 @@ EOF
               chmod 600 "$TMP_PERSIST/secrets/nut-monuser-password"
             fi
 
+            if [ ! -f "$TMP_PERSIST/secrets/rclone-pass" ]; then
+              echo "changeme" > "$TMP_PERSIST/secrets/rclone-pass"
+              chmod 600 "$TMP_PERSIST/secrets/rclone-pass"
+            fi
+
+            # Container persistence directories and volume stubs
+            mkdir -p \
+              "$TMP_PERSIST/docker/swag/config" \
+              "$TMP_PERSIST/docker/swag/logrotate/logrotate.d" \
+              "$TMP_PERSIST/docker/nut_server/upswake/upswake-rules" \
+              "$TMP_PERSIST/docker/portainer/data" \
+              "$TMP_PERSIST/docker/python_container" \
+              "$TMP_PERSIST/docker/rclone/config" \
+              "$TMP_PERSIST/docker/rclone/downloads" \
+              "$TMP_PERSIST/home/pi"
+
+            if [ ! -f "$TMP_PERSIST/docker/swag/logrotate/logrotate.conf" ]; then
+              touch "$TMP_PERSIST/docker/swag/logrotate/logrotate.conf" \
+                    "$TMP_PERSIST/docker/swag/logrotate/logrotate.d/fail2ban" \
+                    "$TMP_PERSIST/docker/swag/logrotate/logrotate.d/lerotate" \
+                    "$TMP_PERSIST/docker/swag/logrotate/logrotate.d/nginx" \
+                    "$TMP_PERSIST/docker/swag/logrotate/logrotate.d/php-fpm"
+            fi
+
+            if [ ! -f "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml"
+# UPSWake starter config
+server:
+  host: "127.0.0.1"
+  port: 3493
+EOF
+            fi
+
+            if [ ! -f "$TMP_PERSIST/docker/python_container/run.sh" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/docker/python_container/run.sh"
+#!/bin/sh
+echo "Container started."
+sleep infinity
+EOF
+              chmod +x "$TMP_PERSIST/docker/python_container/run.sh"
+            fi
+
             umount "$TMP_PERSIST"
             rmdir "$TMP_PERSIST" || true
           fi
