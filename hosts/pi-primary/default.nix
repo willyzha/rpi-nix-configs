@@ -65,6 +65,12 @@
     };
   };
 
+  # Disable DynamicUser so AdGuard Home uses /var/lib/AdGuardHome directly on read-only root
+  systemd.services.adguardhome.serviceConfig = {
+    DynamicUser = lib.mkForce false;
+    User = "root";
+  };
+
   # 3. Keepalived VRRP Master (~4MB RAM, monitors port 443 for SWAG)
   services.keepalived = {
     enable = true;
