@@ -17,7 +17,7 @@
       }];
     };
     defaultGateway = "192.168.1.1";
-    nameservers = [ "192.168.1.11" "1.1.1.1" ];
+    nameservers = [ "192.168.1.1" "192.168.1.11" "1.1.1.1" ];
 
     # In-Kernel WireGuard VPN server (0 MB daemon RAM, runs directly in Linux kernel)
     wireguard.interfaces.wg0 = {
