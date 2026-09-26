@@ -38,15 +38,15 @@ This setup prevents wear while preserving convenience:
 ```
 ┌────────────────────────────────────────────────────────┐
 │                        RAM                             │
-│  ├─ / (tmpfs, 512MB)       <── All transient writes   │
 │  ├─ /tmp (tmpfs, 256MB)    <── Temporary files         │
+│  ├─ /var/cache (tmpfs, 64M)<── Ephemeral service cache │
 │  └─ journald (volatile)    <── In-memory logs (32MB)   │
 └──────────────────────────┬─────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────┐
 │                      SD CARD                           │
 │  ├─ /boot/firmware         <── Read-Only (vfat)        │
-│  ├─ /nix                   <── Read-Only (ext4)        │
+│  ├─ / (root filesystem)    <── Read-Only (ext4)        │
 │  └─ /persist               <── Persistent (ext4)       │
 │       ├─ /persist/etc/ssh/ (host keys)                 │
 │       ├─ /persist/var/lib/tailscale/ (node state)      │
@@ -56,10 +56,10 @@ This setup prevents wear while preserving convenience:
 └────────────────────────────────────────────────────────┘
 ```
 
-1. **Root on `tmpfs`**: The root filesystem lives entirely in RAM. Nothing written to `/etc`, `/var/log`, or `/tmp` ever touches the SD card.
-2. **Read-Only `/nix` and `/boot/firmware`**: The Nix store and firmware partitions are mounted read-only (`ro`) and with `noatime`.
-3. **No manual toggling**: Unlike Debian's `overlayroot` / `raspi-config`, you do **not** need to disable overlayfs, reboot, apt update, and reboot again.
-4. **`rpi-rebuild` command**: Built-in helper that automatically remounts `/nix` and `/boot/firmware` as `rw`, executes `nixos-rebuild switch`, and restores them to `ro` upon completion.
+1. **Read-Only Root (`/`) and Firmware (`/boot/firmware`)**: The entire root filesystem and boot firmware are mounted read-only (`ro,noatime`). No runtime execution writes to the SD card.
+2. **Volatile RAM for Ephemeral State**: `/tmp`, `/var/cache`, and systemd journals live entirely in RAM (`tmpfs`), allowing services with `CacheDirectory=` (like Tailscale) to operate normally without flash wear.
+3. **Automated First-Boot Persistence**: The `PERSIST` partition is automatically created, formatted, and initialized on first boot, filling the remaining capacity of the SD card.
+4. **`rpi-rebuild` command**: Built-in helper that automatically remounts `/` and `/boot/firmware` as `rw`, executes `nixos-rebuild switch`, and restores them to `ro` upon completion.
 
 ---
 
@@ -70,7 +70,7 @@ rpi-nix-configs/
 ├── .gitignore                        # Prevents secrets and build artifacts from git
 ├── flake.nix                         # Flake entry point (pi-primary & pi-secondary)
 ├── modules/
-│   ├── sd-protection.nix             # Ephemeral root, ro mounts, persist, rpi-rebuild
+│   ├── sd-protection.nix             # Read-only root, tmpfs mounts, persist, rpi-rebuild
 │   ├── common.nix                    # Common base (user pi, ssh keys, zram, timezone, tools)
 │   ├── hardware-rpi3.nix             # RPi 3B kernel and boot config
 │   └── docker.nix                    # Docker daemon tuning & persistent data root
@@ -85,13 +85,13 @@ rpi-nix-configs/
 
 ## SD Card Partitioning Layout
 
-When formatting an SD card for these configurations, partition labels are used:
+When formatting or flashing an SD card for these configurations, partition labels are used:
 
 | Partition | Size | Type | Label | Mount Point | Options |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `1` | 512 MB | FAT32 | `FIRMWARE` | `/boot/firmware` | `ro,noatime` |
-| `2` | 12 GB | ext4 | `NIXOS_SD` | `/nix` | `ro,noatime` |
-| `3` | Remaining | ext4 | `PERSIST` | `/persist` | `rw,noatime` |
+| `1` | 30 MB | FAT32 | `FIRMWARE` | `/boot/firmware` | `ro,noatime` |
+| `2` | ~3.7 GB | ext4 | `NIXOS_SD` | `/` (root) | `ro,noatime` |
+| `3` | Remaining (~26 GB) | ext4 | `PERSIST` | `/persist` | `rw,noatime` |
 
 ---
 
@@ -134,9 +134,10 @@ Initial setup is fully automated using flashable SD card images released directl
      - Generates persistent SSH host keys and initializes directory structures.
      - Boots into zero-wear read-only mode.
 4. **SSH In**:
-   - Connect immediately using your configured SSH key:
+   - Connect immediately using your configured SSH key (via mDNS hostname or static IP):
      ```bash
-     ssh pi@192.168.1.11  # or pi@192.168.1.12
+     ssh pi@pi-primary.local    # or ssh pi@192.168.1.11
+     ssh pi@pi-secondary.local  # or ssh pi@192.168.1.12
      ```
 5. **Configure Secrets**:
    Set up your secrets under `/persist/secrets/` (these remain on the machine and are never tracked by Git):
@@ -202,6 +203,19 @@ Initial setup is fully automated using flashable SD card images released directl
      # View snapshots:
      restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
      ```
+
+6. **Enable Tailscale (on `pi-primary`)**:
+   Authenticate Tailscale as a subnet router and exit node:
+   ```bash
+   sudo tailscale up --advertise-exit-node --accept-routes
+   ```
+   Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
+
+7. **Configure AdGuard Home (on `pi-primary`)**:
+   AdGuard Home runs natively on `pi-primary` with configuration and stats persisted in `/persist/var/lib/AdGuardHome/`:
+   - Web interface: `http://pi-primary.local:3000` (or `http://192.168.1.11:3000`)
+   - DNS server port: `53`
+   Complete the web setup wizard to configure blocklists and upstream DNS.
 
 ---
 
