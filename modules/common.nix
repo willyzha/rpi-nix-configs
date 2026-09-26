@@ -91,6 +91,155 @@
     wireguard-tools
     psmisc
     lsof
+
+    # Helper script: safely set 'pi' login password on read-only root
+    (pkgs.writeShellScriptBin "rpi-set-password" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-set-password)" >&2
+        exit 1
+      fi
+      TARGET_USER="''${1:-pi}"
+      echo "==> Remounting / as Read-Write..."
+      mount -o remount,rw /
+      cleanup() {
+        echo "==> Restoring / as Read-Only..."
+        mount -o remount,ro / || true
+      }
+      trap cleanup EXIT
+      echo "==> Setting password for user '$TARGET_USER'..."
+      passwd "$TARGET_USER"
+      echo "==> Password successfully updated and saved to disk."
+    '')
+
+    # Helper script: set NUT UPS monitor password
+    (pkgs.writeShellScriptBin "rpi-set-nut-password" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-set-nut-password)" >&2
+        exit 1
+      fi
+      PASSWORD="''${1:-}"
+      if [ -z "$PASSWORD" ]; then
+        read -rsp "Enter new NUT monitor password: " PASSWORD
+        echo
+      fi
+      mkdir -p /persist/secrets
+      echo -n "$PASSWORD" > /persist/secrets/nut-monuser-password
+      chmod 600 /persist/secrets/nut-monuser-password
+      echo "==> /persist/secrets/nut-monuser-password updated."
+      if systemctl list-unit-files | grep -q upsd.service; then
+        echo "==> Restarting upsd.service..."
+        systemctl restart upsd.service || true
+      fi
+    '')
+
+    # Helper script: set Keepalived cluster auth password
+    (pkgs.writeShellScriptBin "rpi-set-keepalived-auth" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-set-keepalived-auth)" >&2
+        exit 1
+      fi
+      PASSWORD="''${1:-}"
+      if [ -z "$PASSWORD" ]; then
+        read -rsp "Enter Keepalived cluster auth password: " PASSWORD
+        echo
+      fi
+      mkdir -p /persist/secrets
+      cat <<EOF > /persist/secrets/keepalived-auth.conf
+authentication {
+  auth_type PASS
+  auth_pass $PASSWORD
+}
+EOF
+      chmod 600 /persist/secrets/keepalived-auth.conf
+      echo "==> /persist/secrets/keepalived-auth.conf updated."
+      if systemctl list-unit-files | grep -q keepalived.service; then
+        echo "==> Restarting keepalived.service..."
+        systemctl restart keepalived.service || true
+      fi
+    '')
+
+    # Helper script: set Restic backup repository password
+    (pkgs.writeShellScriptBin "rpi-set-restic-password" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-set-restic-password)" >&2
+        exit 1
+      fi
+      PASSWORD="''${1:-}"
+      if [ -z "$PASSWORD" ]; then
+        read -rsp "Enter new Restic backup password: " PASSWORD
+        echo
+      fi
+      mkdir -p /persist/secrets
+      echo -n "$PASSWORD" > /persist/secrets/restic-password
+      chmod 600 /persist/secrets/restic-password
+      echo "==> /persist/secrets/restic-password updated."
+    '')
+
+    # Helper script: verify and initialize all persistent secret stubs
+    (pkgs.writeShellScriptBin "rpi-init-secrets" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-init-secrets)" >&2
+        exit 1
+      fi
+      mkdir -p /persist/secrets /persist/secrets/wireguard
+      chmod 700 /persist/secrets /persist/secrets/wireguard
+
+      echo "==> Checking persistent secret files..."
+
+      # NUT password
+      if [ ! -f /persist/secrets/nut-monuser-password ]; then
+        echo "changeme" > /persist/secrets/nut-monuser-password
+        chmod 600 /persist/secrets/nut-monuser-password
+        echo "  [CREATED] /persist/secrets/nut-monuser-password (default: changeme)"
+      else
+        echo "  [OK]      /persist/secrets/nut-monuser-password"
+      fi
+
+      # Keepalived auth
+      if [ ! -f /persist/secrets/keepalived-auth.conf ]; then
+        cat <<'EOF' > /persist/secrets/keepalived-auth.conf
+authentication {
+  auth_type PASS
+  auth_pass changeme
+}
+EOF
+        chmod 600 /persist/secrets/keepalived-auth.conf
+        echo "  [CREATED] /persist/secrets/keepalived-auth.conf (default: changeme)"
+      else
+        echo "  [OK]      /persist/secrets/keepalived-auth.conf"
+      fi
+
+      # WireGuard server key
+      if [ ! -f /persist/secrets/wireguard/private.key ]; then
+        ${pkgs.wireguard-tools}/bin/wg genkey > /persist/secrets/wireguard/private.key
+        chmod 600 /persist/secrets/wireguard/private.key
+        ${pkgs.wireguard-tools}/bin/wg pubkey < /persist/secrets/wireguard/private.key > /persist/secrets/wireguard/public.key
+        echo "  [CREATED] /persist/secrets/wireguard/private.key (new WireGuard keypair)"
+      else
+        echo "  [OK]      /persist/secrets/wireguard/private.key"
+      fi
+
+      # Restic backup password
+      if [ ! -f /persist/secrets/restic-password ]; then
+        echo "changeme" > /persist/secrets/restic-password
+        chmod 600 /persist/secrets/restic-password
+        echo "  [CREATED] /persist/secrets/restic-password (default: changeme)"
+      else
+        echo "  [OK]      /persist/secrets/restic-password"
+      fi
+
+      echo "==> All secret files verified."
+    '')
   ];
 
   # Allow unfree packages if needed

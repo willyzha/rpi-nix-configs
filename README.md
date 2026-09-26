@@ -140,46 +140,33 @@ Initial setup is fully automated using flashable SD card images released directl
      ssh pi@pi-secondary.local  # or ssh pi@192.168.1.12
      ```
 5. **Configure Secrets**:
-   Set up your secrets under `/persist/secrets/` (these remain on the machine and are never tracked by Git):
+   Set up your secrets under `/persist/secrets/` using the built-in helper scripts:
 
-   - **User Password** (optional fallback for password login / local console):
-     Because root is read-only, temporarily remount `/` as read-write to set your password:
+   - **Initialize / Verify Starter Secrets**:
      ```bash
-     sudo mount -o remount,rw /
-     sudo passwd pi
-     sudo mount -o remount,ro /
+     sudo rpi-init-secrets
      ```
-     Once set, your password is permanently saved in `/etc/shadow` on the ext4 partition, survives all future reboots, and will **not** be overwritten by NixOS updates or rebuilds.
+
+   - **User Password** (for password login / local console):
+     ```bash
+     sudo rpi-set-password
+     ```
+     *(Automatically handles the read-write remount and writes to disk. Survives all future reboots and rebuilds).*
+
+   - **NUT Server Monitoring Password** (for `pi-primary`, used by `upswake` and `upsd`):
+     ```bash
+     sudo rpi-set-nut-password
+     ```
 
    - **Keepalived Cluster Authentication**:
      ```bash
-     sudo tee /persist/secrets/keepalived-auth.conf << 'EOF'
-     authentication {
-       auth_type PASS
-       auth_pass your-cluster-password
-     }
-     EOF
-     sudo chmod 600 /persist/secrets/keepalived-auth.conf
-     ```
-
-   - **WireGuard Server Key** (for `pi-secondary`):
-     ```bash
-     wg genkey | sudo tee /persist/secrets/wireguard/private.key
-     sudo chmod 600 /persist/secrets/wireguard/private.key
-     ```
-
-   - **NUT Server Monitoring Password** (for `pi-primary`, used by `upswake` container to query `localhost:3493`):
-     ```bash
-     echo "your-nut-monuser-password" | sudo tee /persist/secrets/nut-monuser-password
-     sudo chmod 600 /persist/secrets/nut-monuser-password
+     sudo rpi-set-keepalived-auth
      ```
 
    - **Restic Cloud Backup (Dropbox via Rclone)**:
-     Set up your Restic repository encryption password and Rclone config:
      ```bash
-     # Set Restic encryption password:
-     echo "your-strong-backup-password" | sudo tee /persist/secrets/restic-password
-     sudo chmod 600 /persist/secrets/restic-password
+     sudo rpi-set-restic-password
+     ```
 
      # Copy or create your rclone.conf containing your [dropbox] remote:
      sudo tee /persist/secrets/rclone.conf << 'EOF'
