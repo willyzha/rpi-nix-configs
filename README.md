@@ -164,11 +164,12 @@ Initial setup is fully automated using flashable SD card images released directl
      ```
 
    - **Restic Cloud Backup (Dropbox via Rclone)**:
+     Set the encryption password:
      ```bash
      sudo rpi-set-restic-password
      ```
-
-     # Copy or create your rclone.conf containing your [dropbox] remote:
+     Copy or create your `rclone.conf` containing your `[dropbox]` remote:
+     ```bash
      sudo tee /persist/secrets/rclone.conf << 'EOF'
      [dropbox]
      type = dropbox
