@@ -191,7 +191,7 @@ EOF
       trap cleanup EXIT
 
       echo "==> Applying NixOS configuration ($ACTION)..."
-      nixos-rebuild "$ACTION" --flake "$FLAKE_TARGET"
+      nixos-rebuild "$ACTION" --refresh --flake "$FLAKE_TARGET"
 
       echo "==> Update complete. Partitions restored to Read-Only."
     '')
