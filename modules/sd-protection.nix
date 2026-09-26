@@ -172,6 +172,14 @@ EOF
               chmod 600 "$TMP_PERSIST/secrets/rclone-pass"
             fi
 
+            if [ ! -f "$TMP_PERSIST/secrets/swag.env" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/swag.env"
+URL=example.com
+EMAIL=admin@example.com
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/swag.env"
+            fi
+
             # Container persistence directories and volume stubs
             mkdir -p \
               "$TMP_PERSIST/docker/swag/config" \

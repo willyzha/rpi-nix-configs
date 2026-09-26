@@ -238,7 +238,100 @@ EOF
         echo "  [OK]      /persist/secrets/restic-password"
       fi
 
+      # SWAG domain and email
+      if [ ! -f /persist/secrets/swag.env ]; then
+        cat <<'EOF' > /persist/secrets/swag.env
+URL=example.com
+EMAIL=admin@example.com
+EOF
+        chmod 600 /persist/secrets/swag.env
+        echo "  [CREATED] /persist/secrets/swag.env (default: example.com)"
+      else
+        echo "  [OK]      /persist/secrets/swag.env"
+      fi
+
       echo "==> All secret files verified."
+    '')
+
+    # Helper script: interactively configure all private SWAG fields (URL, EMAIL, Cloudflare token)
+    (pkgs.writeShellScriptBin "rpi-set-swag" ''
+      #!/usr/bin/env bash
+      set -euo pipefail
+      if [ "$EUID" -ne 0 ]; then
+        echo "Error: Please run as root (e.g. sudo rpi-set-swag)" >&2
+        exit 1
+      fi
+
+      echo "=========================================="
+      echo "    SWAG Reverse Proxy Setup Wizard       "
+      echo "=========================================="
+      echo "All inputs are stored locally in /persist and NEVER tracked by Git."
+      echo
+
+      # 1. Domain URL
+      CURRENT_URL=""
+      if [ -f /persist/secrets/swag.env ]; then
+        CURRENT_URL=$(grep -E '^URL=' /persist/secrets/swag.env | cut -d= -f2- || true)
+      fi
+      read -rp "Enter Root Domain (e.g. example.com) [$CURRENT_URL]: " INPUT_URL
+      URL="''${INPUT_URL:-$CURRENT_URL}"
+      if [ -z "$URL" ]; then
+        echo "Error: Domain URL cannot be empty." >&2
+        exit 1
+      fi
+
+      # 2. Contact Email
+      CURRENT_EMAIL=""
+      if [ -f /persist/secrets/swag.env ]; then
+        CURRENT_EMAIL=$(grep -E '^EMAIL=' /persist/secrets/swag.env | cut -d= -f2- || true)
+      fi
+      read -rp "Enter Email for Let's Encrypt [$CURRENT_EMAIL]: " INPUT_EMAIL
+      EMAIL="''${INPUT_EMAIL:-$CURRENT_EMAIL}"
+      if [ -z "$EMAIL" ]; then
+        echo "Error: Email cannot be empty." >&2
+        exit 1
+      fi
+
+      mkdir -p /persist/secrets
+      cat <<EOF > /persist/secrets/swag.env
+URL=$URL
+EMAIL=$EMAIL
+EOF
+      chmod 600 /persist/secrets/swag.env
+      echo "==> Stored URL and EMAIL in /persist/secrets/swag.env"
+
+      # 3. Cloudflare API Token
+      CF_DIR="/persist/docker/swag/config/dns-conf"
+      CF_INI="$CF_DIR/cloudflare.ini"
+      mkdir -p "$CF_DIR"
+      CURRENT_TOKEN=""
+      if [ -f "$CF_INI" ]; then
+        CURRENT_TOKEN=$(grep -E 'dns_cloudflare_api_token' "$CF_INI" | awk -F= '{gsub(/[ \t]/,"",$2); print $2}' || true)
+      fi
+
+      PROMPT_TEXT="Enter Cloudflare API Token"
+      if [ -n "$CURRENT_TOKEN" ]; then
+        PROMPT_TEXT="$PROMPT_TEXT [press Enter to keep existing token]"
+      fi
+      read -rsp "$PROMPT_TEXT: " INPUT_TOKEN
+      echo
+
+      TOKEN="''${INPUT_TOKEN:-$CURRENT_TOKEN}"
+      if [ -n "$TOKEN" ]; then
+        cat <<EOF > "$CF_INI"
+dns_cloudflare_api_token = $TOKEN
+EOF
+        chmod 600 "$CF_INI"
+        echo "==> Stored Cloudflare token in $CF_INI"
+      fi
+
+      echo
+      echo "==> SWAG private credentials successfully saved."
+      if systemctl list-unit-files | grep -q docker-swag.service; then
+        echo "==> Restarting docker-swag..."
+        systemctl restart docker-swag.service || true
+        echo "==> SWAG restarted. Run 'docker logs -f swag' to monitor certificate generation."
+      fi
     '')
   ];
 

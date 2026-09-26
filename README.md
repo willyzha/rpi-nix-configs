@@ -158,6 +158,12 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo rpi-set-nut-password
      ```
 
+   - **SWAG Reverse Proxy Setup (Domain, Email & Cloudflare Token)**:
+     ```bash
+     sudo rpi-set-swag
+     ```
+     *(Interactively prompts for your root domain, email, and Cloudflare token, saves them locally under `/persist/`, and restarts SWAG. Zero private data on Git).*
+
    - **Keepalived Cluster Authentication**:
      ```bash
      sudo rpi-set-keepalived-auth
