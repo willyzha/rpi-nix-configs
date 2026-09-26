@@ -142,11 +142,14 @@ Initial setup is fully automated using flashable SD card images released directl
 5. **Configure Secrets**:
    Set up your secrets under `/persist/secrets/` (these remain on the machine and are never tracked by Git):
 
-   - **User Password Hash** (optional fallback if logging in with password instead of SSH key):
+   - **User Password** (optional fallback for password login / local console):
+     Because root is read-only, temporarily remount `/` as read-write to set your password:
      ```bash
-     mkpasswd -m sha-512 "your-chosen-password" | sudo tee /persist/secrets/pi-password-hash
-     sudo chmod 600 /persist/secrets/pi-password-hash
+     sudo mount -o remount,rw /
+     sudo passwd pi
+     sudo mount -o remount,ro /
      ```
+     Once set, your password is permanently saved in `/etc/shadow` on the ext4 partition, survives all future reboots, and will **not** be overwritten by NixOS updates or rebuilds.
 
    - **Keepalived Cluster Authentication**:
      ```bash
