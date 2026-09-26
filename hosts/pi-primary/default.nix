@@ -17,7 +17,7 @@
       }];
     };
     defaultGateway = "192.168.1.1";
-    nameservers = [ "127.0.0.1" "1.1.1.1" ];
+    nameservers = [ "1.1.1.1" "127.0.0.1" ];
     firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
   };
 
@@ -26,13 +26,13 @@
   # ---------------------------------------------------------------------------
   fileSystems."/var/lib/tailscale" = {
     device = "/persist/var/lib/tailscale";
-    options = [ "bind" ];
+    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" ];
     noCheck = true;
   };
 
   fileSystems."/var/lib/AdGuardHome" = {
     device = "/persist/var/lib/AdGuardHome";
-    options = [ "bind" ];
+    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" ];
     noCheck = true;
   };
 
@@ -76,16 +76,22 @@
   # 3. Keepalived VRRP Master (~4MB RAM, monitors port 443 for SWAG)
   services.keepalived = {
     enable = true;
+    extraGlobalDefs = ''
+      vrrp_garp_master_repeat 5
+      vrrp_garp_master_refresh 60
+    '';
     vrrpScripts.check_swag = {
       script = "${pkgs.iproute2}/bin/ss -tlpn | grep -q :443";
       interval = 2;
-      weight = 2;
+      weight = -20;
     };
     vrrpInstances.VI_1 = {
       interface = "eth0";
       state = "MASTER";
       virtualRouterId = 51;
       priority = 105;
+      unicastSrcIp = "192.168.1.11";
+      unicastPeers = [ "192.168.1.12" ];
       virtualIps = [
         { addr = "192.168.1.9/24"; }
       ];

@@ -28,6 +28,7 @@
 
   # Networking
   networking = {
+    usePredictableInterfaceNames = lib.mkDefault false; # Keep eth0 interface name for SMSC9514 USB-Ethernet
     firewall.enable = false; # Disable internal firewall by default (handled by container/services)
   };
 

@@ -49,16 +49,22 @@
   # 1. Keepalived VRRP Backup Node (~4MB RAM, monitors port 443 for SWAG)
   services.keepalived = {
     enable = true;
+    extraGlobalDefs = ''
+      vrrp_garp_master_repeat 5
+      vrrp_garp_master_refresh 60
+    '';
     vrrpScripts.check_swag = {
       script = "${pkgs.iproute2}/bin/ss -tlpn | grep -q :443";
       interval = 2;
-      weight = 2;
+      weight = -20;
     };
     vrrpInstances.VI_1 = {
       interface = "eth0";
       state = "BACKUP";
       virtualRouterId = 51;
       priority = 100;
+      unicastSrcIp = "192.168.1.12";
+      unicastPeers = [ "192.168.1.11" ];
       virtualIps = [
         { addr = "192.168.1.9/24"; }
       ];
