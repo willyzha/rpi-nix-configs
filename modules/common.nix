@@ -29,7 +29,19 @@
   # Networking
   networking = {
     usePredictableInterfaceNames = lib.mkDefault false; # Keep eth0 interface name for SMSC9514 USB-Ethernet
+    useDHCP = lib.mkDefault true; # Auto-detect IP, router gateway, and DNS on any network
     firewall.enable = false; # Disable internal firewall by default (handled by container/services)
+  };
+
+  # Zero-config local network discovery (e.g., ssh pi@pi-primary.local)
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+    publish = {
+      enable = true;
+      addresses = true;
+      workstation = true;
+    };
   };
 
   # SSH configuration
