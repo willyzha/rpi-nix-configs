@@ -38,6 +38,16 @@
   };
 
   # ---------------------------------------------------------------------------
+  # State Persistence for Native Services (Bind-mounted from /persist)
+  # ---------------------------------------------------------------------------
+  fileSystems."/var/lib/AdGuardHome" = {
+    device = "/persist/var/lib/AdGuardHome";
+    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
+    noCheck = true;
+    depends = [ "/persist" ];
+  };
+
+  # ---------------------------------------------------------------------------
   # Native NixOS Services
   # ---------------------------------------------------------------------------
 
@@ -82,6 +92,34 @@
       Restart = "always";
       RestartSec = 5;
     };
+  };
+
+  # 3. AdGuard Home (~15MB RAM, secondary DNS resolver, web UI on port 3000)
+  services.adguardhome = {
+    enable = true;
+    mutableSettings = true;
+    port = 3000; # Web UI accessible at http://192.168.1.12:3000
+    settings = {
+      dns = {
+        bind_hosts = [ "0.0.0.0" ];
+        port = 53;
+        upstream_dns = [
+          "8.8.8.8"
+          "1.1.1.1"
+        ];
+      };
+      querylog = {
+        enabled = true;
+        interval = "24h";
+        size_memory = 1000;
+      };
+    };
+  };
+
+  # Disable DynamicUser so AdGuard Home uses /var/lib/AdGuardHome directly on read-only root
+  systemd.services.adguardhome.serviceConfig = {
+    DynamicUser = lib.mkForce false;
+    User = "root";
   };
 
   # ---------------------------------------------------------------------------
