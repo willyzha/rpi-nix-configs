@@ -54,6 +54,13 @@
     options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=1M" ];
   };
 
+  # Volatile NUT state in RAM: allows upsd and upsdrv to write sockets and PID files on read-only root
+  fileSystems."/var/lib/nut" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0700" "size=2M" ];
+  };
+
   # 6. Persist SSH host keys so SSH client fingerprints don't change on reboot
   services.openssh.hostKeys = [
     {
@@ -231,7 +238,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket
+        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
         ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
         ${pkgs.systemd}/bin/udevadm settle || true
