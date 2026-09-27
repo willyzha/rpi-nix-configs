@@ -28,10 +28,13 @@
     };
   };
 
-  # Kernel IP forwarding and routing marks for WireGuard
+  # Kernel IP forwarding and routing marks for WireGuard, with loose rp_filter
   boot.kernel.sysctl = {
     "net.ipv4.ip_forward" = 1;
     "net.ipv4.conf.all.src_valid_mark" = 1;
+    "net.ipv4.conf.all.rp_filter" = 2;
+    "net.ipv4.conf.default.rp_filter" = 2;
+    "net.ipv4.conf.eth0.rp_filter" = 2;
   };
 
   # ---------------------------------------------------------------------------
@@ -89,9 +92,6 @@
       swag = {
         image = "ghcr.io/linuxserver/swag:latest";
         autoStart = true;
-        ports = [
-          "443:443"
-        ];
         environment = {
           PUID = "1000";
           PGID = "1000";
@@ -115,7 +115,9 @@
           "/persist/docker/swag/logrotate/logrotate.d/php-fpm:/etc/logrotate.d/php-fpm"
         ];
         # Prevent runtime SD card writes: container root is read-only, logs & runtime in RAM
+        # Uses --network=host to bind directly to ports 80/443 without Docker bridge or NAT conflicts
         extraOptions = [
+          "--network=host"
           "--read-only"
           "--tmpfs=/tmp:exec"
           "--tmpfs=/run:exec"
