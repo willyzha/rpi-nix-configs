@@ -24,7 +24,7 @@
   fileSystems."/persist-raw" = {
     device = "/dev/disk/by-label/PERSIST";
     fsType = "ext4";
-    options = [ "noatime" "nofail" "x-systemd.device-timeout=5s" ];
+    options = [ "noatime" "nofail" "x-systemd.device-timeout=30s" ];
     neededForBoot = false;
   };
 
