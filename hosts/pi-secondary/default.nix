@@ -55,6 +55,7 @@
   services.keepalived = {
     enable = true;
     extraGlobalDefs = ''
+      enable_script_security
       vrrp_garp_master_repeat 5
       vrrp_garp_master_refresh 60
     '';
