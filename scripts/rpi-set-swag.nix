@@ -107,8 +107,8 @@ EOF
   echo
   echo "==> SWAG credentials and volume stubs successfully created in /persist."
   if command -v rpi-persist-save >/dev/null 2>&1; then
-    echo "==> Committing SWAG secrets and config to SD card..."
-    rpi-persist-save secrets/swag.env docker/swag
+    echo "==> Committing SWAG secrets and proxy config to SD card..."
+    rpi-persist-save secrets/swag.env docker/swag/config/dns-conf docker/swag/config/nginx/proxy-confs
   fi
   if systemctl list-unit-files | grep -q docker-swag.service; then
     echo "==> Resetting failed units and restarting docker-swag.service..."
