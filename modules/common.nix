@@ -7,11 +7,11 @@
   # Localization
   i18n.defaultLocale = "en_US.UTF-8";
 
-  # Enable zram compressed swap to prevent OOM on 1GB RAM Pi 3
+  # Enable zram compressed swap to prevent OOM on 1GB RAM Pi 3 (compressed RAM, zero SD wear)
   zramSwap = {
     enable = true;
     algorithm = "zstd";
-    memoryPercent = 50;
+    memoryPercent = 100;
   };
 
   # Nix configuration
