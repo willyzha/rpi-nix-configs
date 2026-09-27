@@ -6,10 +6,11 @@
     enable = true;
     enableOnBoot = true;
 
-    # Point docker storage to the persistent partition to prevent
-    # 1GB RAM exhaustion from container layers
+    # Point docker storage directly to the raw ext4 persistent partition (/persist-raw)
+    # rather than the /persist OverlayFS, because Linux kernel overlay2 cannot run on an OverlayFS.
+    # Steady-state containers run read-only with logs in RAM tmpfs to avoid SD wear.
     daemon.settings = {
-      data-root = "/persist/var/lib/docker";
+      data-root = "/persist-raw/var/lib/docker";
       storage-driver = "overlay2";
       log-driver = "json-file";
       log-opts = {
