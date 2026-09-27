@@ -329,6 +329,31 @@ EOF
         echo "==> Stored Cloudflare token in $CF_INI"
       fi
 
+      # 4. Proxy Configurations Check & Reminder
+      PROXY_CONFS_DIR="/persist/docker/swag/config/nginx/proxy-confs"
+      mkdir -p "$PROXY_CONFS_DIR"
+      echo
+      echo "=========================================="
+      echo "    Proxy Configurations (Nginx)          "
+      echo "=========================================="
+      CONF_COUNT=$(find "$PROXY_CONFS_DIR" -maxdepth 1 -name "*.conf" 2>/dev/null | wc -l)
+      if [ "$CONF_COUNT" -eq 0 ]; then
+        echo "NOTICE: No active proxy configuration files found in:"
+        echo "  $PROXY_CONFS_DIR"
+        echo
+        echo "REMINDER: Place your *.subdomain.conf files in that directory to reverse proxy your services."
+        echo "Example:"
+        echo "  sudo cp /path/to/my-service.subdomain.conf $PROXY_CONFS_DIR/"
+        echo "Or copy from pi-primary:"
+        echo "  sudo scp pi@192.168.1.11:$PROXY_CONFS_DIR/*.subdomain.conf $PROXY_CONFS_DIR/"
+        echo
+        echo "After adding configs, reload Nginx with: sudo docker exec swag nginx -s reload"
+      else
+        echo "Found $CONF_COUNT active proxy configuration file(s) in:"
+        echo "  $PROXY_CONFS_DIR"
+        ls -1 "$PROXY_CONFS_DIR"/*.conf 2>/dev/null | sed 's/^/  - /'
+      fi
+
       echo
       echo "==> SWAG private credentials successfully saved."
       if systemctl list-unit-files | grep -q docker-swag.service; then
