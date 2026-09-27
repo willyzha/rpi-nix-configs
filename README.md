@@ -212,7 +212,7 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo journalctl -u restic-backups-persist.service -f
 
      # View snapshots:
-     restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
+     sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
      ```
 
 6. **Enable Tailscale (on `pi-primary`)**:
