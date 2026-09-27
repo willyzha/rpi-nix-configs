@@ -96,11 +96,10 @@
     };
   };
 
-  # Ensure mount points exist on the root filesystem during activation
+  # Ensure mount points exist and root is writable during activation
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
     mkdir -p /persist /persist-raw /run/persist-overlay
-    ${pkgs.util-linux}/bin/mount -o remount,ro / || true
   '';
 
   # 4. Volatile system logging: logs are kept in RAM only (max 32MB)
