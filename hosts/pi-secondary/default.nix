@@ -78,7 +78,7 @@
       trackScripts = [ "check_swag" ];
       extraConfig = ''
         include /persist/secrets/keepalived-auth.conf
-        preempt_delay 30
+        nopreempt
       '';
     };
   };

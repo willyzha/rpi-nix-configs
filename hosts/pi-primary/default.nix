@@ -96,7 +96,7 @@
     };
     vrrpInstances.VI_1 = {
       interface = "eth0";
-      state = "MASTER";
+      state = "BACKUP";
       virtualRouterId = 51;
       priority = 105;
       unicastSrcIp = "192.168.1.11";
@@ -108,7 +108,7 @@
       # Auth config loaded from persistent untracked secret file if present
       extraConfig = ''
         include /persist/secrets/keepalived-auth.conf
-        preempt_delay 30
+        nopreempt
       '';
     };
   };
