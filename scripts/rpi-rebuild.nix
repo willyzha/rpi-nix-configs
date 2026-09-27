@@ -58,10 +58,10 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
 
   for svc in "''${CANDIDATE_SERVICES[@]}"; do
     if systemctl is-active --quiet "$svc" 2>/dev/null; then
-      echo "    Stopping $svc..."
-      systemctl stop "$svc" 2>/dev/null || true
       STOPPED_SERVICES+=("$svc")
     fi
+    echo "    Stopping $svc..."
+    systemctl stop "$svc" 2>/dev/null || true
   done
 
   # Drop filesystem caches to free RAM
