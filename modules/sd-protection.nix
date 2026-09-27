@@ -97,7 +97,7 @@
   };
 
   # Ensure mount points exist on the root filesystem during activation
-  system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ "specialMounts" ] ''
+  system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
     mkdir -p /persist /persist-raw /run/persist-overlay
     ${pkgs.util-linux}/bin/mount -o remount,ro / || true
