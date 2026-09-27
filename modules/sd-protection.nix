@@ -74,6 +74,28 @@
     };
   };
 
+  # Watch for SWAG Let's Encrypt certificate renewals and auto-persist to SD card
+  systemd.paths.rpi-persist-save-certs = {
+    description = "Watch for SWAG Let's Encrypt certificate renewals";
+    wantedBy = [ "multi-user.target" ];
+    pathConfig = {
+      PathModified = "/persist/docker/swag/config/etc/letsencrypt";
+      Unit = "rpi-persist-save-certs.service";
+    };
+  };
+
+  systemd.services.rpi-persist-save-certs = {
+    description = "Auto-persist renewed SWAG SSL certificates to SD card";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.writeShellScript "save-certs" ''
+        if [ -d /persist/docker/swag/config/etc/letsencrypt ] && command -v rpi-persist-save >/dev/null 2>&1; then
+          rpi-persist-save certs || true
+        fi
+      ''}";
+    };
+  };
+
   # Ensure mount points exist on the root filesystem during activation
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ "specialMounts" ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true

@@ -203,16 +203,25 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo rpi-persist-save secrets/rclone.conf
      ```
 
-   - **Committing Manual Edits to the SD Card (`rpi-persist-save`)**:
-     Because `/persist` is backed by an OverlayFS, all writes are safely absorbed into volatile RAM (`tmpfs`) to prevent SD card wear. Built-in setup wizards (`rpi-set-swag`, `rpi-set-nut-password`, etc.) automatically commit their changes. If you manually create or edit files in `/persist` (such as Nginx proxy confs, `rclone.conf`, or WireGuard keys):
-     ```bash
-     # Save specific files or directories:
-     sudo rpi-persist-save secrets/rclone.conf
-     sudo rpi-persist-save docker/swag/config/nginx/proxy-confs
+   - **Targeted Persistence & Saving Changes (`rpi-persist-save`)**:
+     Because `/persist` is backed by an OverlayFS, all writes are safely absorbed into volatile RAM (`tmpfs`) to prevent SD card wear.
+     - **Setup wizards** (`rpi-set-nut-password`, `rpi-set-swag`, etc.) only save their targeted password/config files.
+     - **Certificate renewals** (`docker/swag/config/etc/letsencrypt`) are **automatically saved** to the SD card via a systemd path watcher whenever SWAG refreshes them.
+     - **Manual saves**: You can target specific files or convenient shortcuts:
+       ```bash
+       # Targeted shortcuts:
+       sudo rpi-persist-save certs       # Saves SWAG Let's Encrypt certificates
+       sudo rpi-persist-save swag        # Saves SWAG proxy configs, DNS token, env
+       sudo rpi-persist-save passwords   # Saves NUT, Keepalived, and Restic passwords
+       sudo rpi-persist-save secrets     # Saves /persist/secrets directory
 
-     # Or review and commit all pending overlay changes at once:
-     sudo rpi-persist-save
-     ```
+       # Specific files or directories:
+       sudo rpi-persist-save secrets/rclone.conf
+       sudo rpi-persist-save docker/swag/config/nginx/proxy-confs
+
+       # Default targeted scan (only commits allowed persistent whitelist, ignores accidental writes):
+       sudo rpi-persist-save
+       ```
 
    - **Restart Affected Services & Test Backup**:
      ```bash
