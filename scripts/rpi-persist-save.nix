@@ -105,11 +105,11 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     if [ -d "$SRC" ]; then
       echo "  [SAVE DIR]  /persist/$TARGET -> /persist-raw/$TARGET"
       mkdir -p "$DEST"
-      ${pkgs.rsync}/bin/rsync -a --delete --exclude-special "$SRC/" "$DEST/"
+      ${pkgs.rsync}/bin/rsync -a --delete --no-specials --no-devices "$SRC/" "$DEST/"
     else
       echo "  [SAVE FILE] /persist/$TARGET -> /persist-raw/$TARGET"
       mkdir -p "$(dirname "$DEST")"
-      ${pkgs.rsync}/bin/rsync -a --exclude-special "$SRC" "$DEST"
+      ${pkgs.rsync}/bin/rsync -a --no-specials --no-devices "$SRC" "$DEST"
     fi
   }
 
