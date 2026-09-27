@@ -334,7 +334,7 @@ EOF
       trap cleanup EXIT INT TERM
 
       echo "==> Applying NixOS configuration ($ACTION) for $FLAKE_TARGET..."
-      nixos-rebuild "$ACTION" --max-jobs 1 --cores 2 --refresh --flake "$FLAKE_TARGET" "$@"
+      nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
 
       SUCCESS=true
 
