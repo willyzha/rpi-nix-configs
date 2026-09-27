@@ -26,14 +26,16 @@
   # ---------------------------------------------------------------------------
   fileSystems."/var/lib/tailscale" = {
     device = "/persist/var/lib/tailscale";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" ];
+    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
     noCheck = true;
+    depends = [ "/persist" ];
   };
 
   fileSystems."/var/lib/AdGuardHome" = {
     device = "/persist/var/lib/AdGuardHome";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" ];
+    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
     noCheck = true;
+    depends = [ "/persist" ];
   };
 
   # ---------------------------------------------------------------------------
@@ -104,6 +106,7 @@
       # Auth config loaded from persistent untracked secret file if present
       extraConfig = ''
         include /persist/secrets/keepalived-auth.conf
+        preempt_delay 30
       '';
     };
   };

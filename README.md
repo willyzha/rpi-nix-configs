@@ -37,29 +37,33 @@ This setup prevents wear while preserving convenience:
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                        RAM                             │
-│  ├─ /tmp (tmpfs, 256MB)    <── Temporary files         │
-│  ├─ /var/cache (tmpfs, 64M)<── Ephemeral service cache │
-│  └─ journald (volatile)    <── In-memory logs (32MB)   │
-└──────────────────────────┬─────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                        RAM (Volatile)                      │
+│  ├─ /tmp (tmpfs, 256MB)        <── Temporary files         │
+│  ├─ /var/cache (tmpfs, 64M)    <── Ephemeral service cache │
+│  ├─ journald (volatile)        <── In-memory logs (32MB)   │
+│  └─ /persist (OverlayFS)       <── Volatile upper layer    │
+│       ├─ Accidental & runtime writes absorbed into RAM     │
+│       └─ 'rpi-persist-save' explicitly commits to SD card  │
+└──────────────────────────┬─────────────────────────────────┘
                            │
-┌──────────────────────────▼─────────────────────────────┐
-│                      SD CARD                           │
-│  ├─ /boot/firmware         <── Read-Only (vfat)        │
-│  ├─ / (root filesystem)    <── Read-Only (ext4)        │
-│  └─ /persist               <── Persistent (ext4)       │
-│       ├─ /persist/etc/ssh/ (host keys)                 │
-│       ├─ /persist/var/lib/tailscale/ (node state)      │
-│       ├─ /persist/var/lib/AdGuardHome/ (DNS database)  │
-│       ├─ /persist/var/lib/docker/ (containers)         │
-│       └─ /persist/secrets/ (passwords & keys)          │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────▼─────────────────────────────────┐
+│                      SD CARD (Physical Flash)              │
+│  ├─ /boot/firmware             <── Read-Only (vfat)        │
+│  ├─ / (root filesystem)        <── Read-Only (ext4)        │
+│  └─ /persist-raw (ext4)        <── Lower layer for /persist│
+│       ├─ /persist-raw/etc/ssh/ (host keys)                 │
+│       ├─ /persist-raw/var/lib/docker/ (container storage)  │
+│       └─ /persist-raw/secrets/ (passwords & keys)          │
+└────────────────────────────────────────────────────────────┘
 ```
 
 1. **Read-Only Root (`/`) and Firmware (`/boot/firmware`)**: The entire root filesystem and boot firmware are mounted read-only (`ro,noatime`). No runtime execution writes to the SD card.
 2. **Volatile RAM for Ephemeral State**: `/tmp`, `/var/cache`, and systemd journals live entirely in RAM (`tmpfs`), allowing services with `CacheDirectory=` (like Tailscale) to operate normally without flash wear.
-3. **Automated First-Boot Persistence**: The `PERSIST` partition is automatically created, formatted, and initialized on first boot, filling the remaining capacity of the SD card.
-4. **`rpi-rebuild` command**: Built-in helper that automatically remounts `/` and `/boot/firmware` as `rw`, executes `nixos-rebuild switch`, and restores them to `ro` upon completion.
+3. **OverlayFS on `/persist` with Zero Accidental SD Writes**: The `/persist` mount is backed by an OverlayFS. Runtime writes (logs, temporary container files, accidental writes) are absorbed into volatile RAM (`tmpfs`). Only explicit commits via `rpi-persist-save` (or built-in setup wizards) write to the physical SD card (`/persist-raw`).
+4. **Automated First-Boot Persistence**: The `PERSIST` partition is automatically created, formatted, and initialized on first boot, filling the remaining capacity of the SD card.
+5. **`rpi-rebuild` command**: Built-in helper that automatically saves pending overlay changes, remounts `/` and `/boot/firmware` as `rw`, executes `nixos-rebuild`, and restores them to `ro` upon completion.
+6. **`rpi-persist-save` command**: Built-in helper to commit modified files/directories from the `/persist` overlay down to physical SD card storage (`/persist-raw`).
 
 ---
 
@@ -70,10 +74,10 @@ rpi-nix-configs/
 ├── .gitignore                        # Prevents secrets and build artifacts from git
 ├── flake.nix                         # Flake entry point (pi-primary & pi-secondary)
 ├── modules/
-│   ├── sd-protection.nix             # Read-only root, tmpfs mounts, persist, rpi-rebuild
+│   ├── sd-protection.nix             # Read-only root, OverlayFS, tmpfs mounts, rpi-persist-save, rpi-rebuild
 │   ├── common.nix                    # Common base (user pi, ssh keys, zram, timezone, tools)
 │   ├── hardware-rpi3.nix             # RPi 3B kernel and boot config
-│   └── docker.nix                    # Docker daemon tuning & persistent data root
+│   └── docker.nix                    # Docker daemon tuning & native ext4 data root
 └── hosts/
     ├── pi-primary/
     │   └── default.nix               # AdGuard Home, Tailscale, NUT, Keepalived, SWAG
@@ -91,7 +95,7 @@ When formatting or flashing an SD card for these configurations, partition label
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `1` | 30 MB | FAT32 | `FIRMWARE` | `/boot/firmware` | `ro,noatime` |
 | `2` | ~3.7 GB | ext4 | `NIXOS_SD` | `/` (root) | `ro,noatime` |
-| `3` | Remaining (~26 GB) | ext4 | `PERSIST` | `/persist` | `rw,noatime` |
+| `3` | Remaining (~26 GB) | ext4 | `PERSIST` | `/persist-raw` (backing for `/persist` OverlayFS) | `noatime` |
 
 ---
 
@@ -196,6 +200,18 @@ Initial setup is fully automated using flashable SD card images released directl
      token = {"access_token":"...","token_type":"bearer","refresh_token":"...","expiry":"..."}
      EOF
      sudo chmod 600 /persist/secrets/rclone.conf
+     sudo rpi-persist-save secrets/rclone.conf
+     ```
+
+   - **Committing Manual Edits to the SD Card (`rpi-persist-save`)**:
+     Because `/persist` is backed by an OverlayFS, all writes are safely absorbed into volatile RAM (`tmpfs`) to prevent SD card wear. Built-in setup wizards (`rpi-set-swag`, `rpi-set-nut-password`, etc.) automatically commit their changes. If you manually create or edit files in `/persist` (such as Nginx proxy confs, `rclone.conf`, or WireGuard keys):
+     ```bash
+     # Save specific files or directories:
+     sudo rpi-persist-save secrets/rclone.conf
+     sudo rpi-persist-save docker/swag/config/nginx/proxy-confs
+
+     # Or review and commit all pending overlay changes at once:
+     sudo rpi-persist-save
      ```
 
    - **Restart Affected Services & Test Backup**:

@@ -20,14 +20,66 @@
     options = [ "ro" "noatime" "nofail" "fmask=0137" "dmask=0027" ];
   };
 
-  # 3. Mount /persist for state that MUST survive reboots
-  #    (e.g., SSH host keys, Tailscale keys, container data).
-  fileSystems."/persist" = {
+  # 3a. Mount physical persistent SD card partition at /persist-raw (ext4).
+  fileSystems."/persist-raw" = {
     device = "/dev/disk/by-label/PERSIST";
     fsType = "ext4";
     options = [ "noatime" "nofail" "x-systemd.device-timeout=5s" ];
     neededForBoot = false;
   };
+
+  # 3b. Volatile overlay backing memory in RAM (tmpfs).
+  #     Holds all modified/new files written to /persist in RAM to prevent SD card wear.
+  fileSystems."/run/persist-overlay" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=256M" ];
+  };
+
+  # 3c. Mount /persist as an OverlayFS combining physical /persist-raw (lower)
+  #     with volatile tmpfs (upper/work).
+  #     All runtime writes, container data writes, and accidental writes are absorbed into RAM.
+  #     Use 'rpi-persist-save' to explicitly commit configuration and secret updates to SD card.
+  fileSystems."/persist" = {
+    device = "overlay";
+    fsType = "overlay";
+    options = [
+      "lowerdir=/persist-raw"
+      "upperdir=/run/persist-overlay/upper"
+      "workdir=/run/persist-overlay/work"
+      "nofail"
+      "x-systemd.requires=init-persist-overlay.service"
+      "x-systemd.after=init-persist-overlay.service"
+    ];
+    depends = [
+      "/persist-raw"
+      "/run/persist-overlay"
+    ];
+  };
+
+  # Service to prepare overlay upper and work directories before /persist is mounted
+  systemd.services.init-persist-overlay = {
+    description = "Prepare upper and work directories for /persist overlay";
+    wantedBy = [ "local-fs.target" ];
+    before = [ "persist.mount" "local-fs.target" ];
+    after = [ "run-persist\\x2doverlay.mount" "persist\\x2draw.mount" ];
+    requires = [ "run-persist\\x2doverlay.mount" "persist\\x2draw.mount" ];
+    unitConfig = {
+      DefaultDependencies = false;
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.coreutils}/bin/mkdir -p /run/persist-overlay/upper /run/persist-overlay/work";
+    };
+  };
+
+  # Ensure mount points exist on the root filesystem during activation
+  system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ "specialMounts" ] ''
+    ${pkgs.util-linux}/bin/mount -o remount,rw / || true
+    mkdir -p /persist /persist-raw /run/persist-overlay
+    ${pkgs.util-linux}/bin/mount -o remount,ro / || true
+  '';
 
   # 4. Volatile system logging: logs are kept in RAM only (max 32MB)
   #    Preventing constant background writes from journald.
@@ -80,6 +132,7 @@
     "d /persist/secrets 0700 root root -"
     "d /persist/secrets/wireguard 0700 root root -"
     "d /persist/var/lib/docker 0710 root root -"
+    "d /persist-raw/var/lib/docker 0710 root root -"
     "d /persist/var/lib/tailscale 0700 root root -"
     "d /persist/var/lib/AdGuardHome 0755 root root -"
     "d /persist/docker 0755 root root -"
@@ -242,7 +295,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
+        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
         ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
         ${pkgs.systemd}/bin/udevadm settle || true
@@ -250,122 +303,4 @@ EOF
     };
   };
 
-  # 10. Helper command to safely rebuild & upgrade generations.
-  #     Automatically remounts / and /boot/firmware read-write,
-  #     stops all non-essential services to maximize physical RAM (~700MB+ free),
-  #     builds the target generation, and reboots cleanly into the new generation
-  #     (or safely restores services and read-only mounts if the build fails).
-  environment.systemPackages = [
-    (pkgs.writeShellScriptBin "rpi-rebuild" ''
-      #!/usr/bin/env bash
-      set -euo pipefail
-
-      ACTION="''${1:-boot}"
-      FLAKE_TARGET="''${2:-.#}"
-      shift 2 2>/dev/null || true
-
-      # If action is 'switch', map to 'boot' since we reboot cleanly after a successful build
-      if [ "$ACTION" = "switch" ]; then
-        ACTION="boot"
-      fi
-
-      echo "==> Remounting / and /boot/firmware as Read-Write..."
-      mount -o remount,rw /
-      if mountpoint -q /boot/firmware; then
-        mount -o remount,rw /boot/firmware || true
-      fi
-
-      # Ensure nix-daemon is alive and listening
-      systemctl restart nix-daemon.socket nix-daemon.service || true
-
-      # Candidate services to stop to reclaim maximum physical RAM (~700MB+ free)
-      CANDIDATE_SERVICES=(
-        "docker-swag.service"
-        "docker-upswake.service"
-        "docker.service"
-        "docker.socket"
-        "containerd.service"
-        "adguardhome.service"
-        "glances.service"
-        "keepalived.service"
-        "upsd.service"
-        "upsdrv.service"
-      )
-
-      # Only stop tailscaled if no active SSH session is running over Tailscale (100.x)
-      if ! ss -tn state established '( sport = :22 )' 2>/dev/null | grep -q ' 100\.'; then
-        CANDIDATE_SERVICES+=("tailscaled.service")
-      fi
-
-      STOPPED_SERVICES=()
-      echo "==> Stopping non-essential services to maximize physical RAM..."
-      if command -v docker >/dev/null 2>&1 && systemctl is-active --quiet docker 2>/dev/null; then
-        RUNNING_CONTAINERS=$(docker ps -q 2>/dev/null || true)
-        if [ -n "$RUNNING_CONTAINERS" ]; then
-          echo "    Stopping active Docker containers..."
-          docker stop $RUNNING_CONTAINERS 2>/dev/null || true
-        fi
-      fi
-
-      for svc in "''${CANDIDATE_SERVICES[@]}"; do
-        if systemctl is-active --quiet "$svc" 2>/dev/null; then
-          echo "    Stopping $svc..."
-          systemctl stop "$svc" 2>/dev/null || true
-          STOPPED_SERVICES+=("$svc")
-        fi
-      done
-
-      # Drop filesystem caches to free RAM
-      sync
-      echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-      free -h
-
-      SUCCESS=false
-      cleanup() {
-        if [ "$SUCCESS" != "true" ]; then
-          echo "==> Rebuild failed or was cancelled! Restoring stopped services..."
-          for svc in "''${STOPPED_SERVICES[@]}"; do
-            echo "    Starting $svc..."
-            systemctl start "$svc" 2>/dev/null || true
-          done
-          echo "==> Restoring partitions to Read-Only..."
-          if mountpoint -q /boot/firmware; then
-            mount -o remount,ro /boot/firmware || true
-          fi
-          mount -o remount,ro / || true
-        fi
-      }
-      trap cleanup EXIT INT TERM
-
-      echo "==> Applying NixOS configuration ($ACTION) for $FLAKE_TARGET..."
-      nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
-
-      SUCCESS=true
-
-      if [ "$ACTION" = "boot" ]; then
-        echo "==> Rebuild successful! System generation updated."
-        echo "==> Syncing disks and restoring Read-Only before reboot..."
-        sync
-        if mountpoint -q /boot/firmware; then
-          mount -o remount,ro /boot/firmware 2>/dev/null || true
-        fi
-        mount -o remount,ro / 2>/dev/null || true
-        echo "==> Rebooting now into the new generation in 3 seconds..."
-        sleep 3
-        reboot
-      else
-        echo "==> Action '$ACTION' complete."
-        echo "==> Restoring stopped services..."
-        for svc in "''${STOPPED_SERVICES[@]}"; do
-          echo "    Starting $svc..."
-          systemctl start "$svc" 2>/dev/null || true
-        done
-        echo "==> Restoring partitions to Read-Only..."
-        if mountpoint -q /boot/firmware; then
-          mount -o remount,ro /boot/firmware || true
-        fi
-        mount -o remount,ro / || true
-      fi
-    '')
-  ];
 }
