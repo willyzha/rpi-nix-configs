@@ -172,8 +172,12 @@
             # Starter config stubs to avoid startup failures on optional secrets
             if [ ! -f "$TMP_PERSIST/secrets/keepalived-auth.conf" ]; then
               cat <<'EOF' > "$TMP_PERSIST/secrets/keepalived-auth.conf"
-# VRRP authentication config (optional)
+authentication {
+  auth_type PASS
+  auth_pass raspberry
+}
 EOF
+              chmod 600 "$TMP_PERSIST/secrets/keepalived-auth.conf"
             fi
 
             if [ ! -f "$TMP_PERSIST/secrets/nut-monuser-password" ]; then
