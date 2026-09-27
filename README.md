@@ -21,6 +21,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 ### `pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - **WireGuard**: VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
+  - **AdGuard Home**: Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - **Keepalived**: VRRP high-availability `BACKUP` (Priority `100`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - **Glances**: System and hardware resource monitoring daemon (Port `61208`).
   - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
