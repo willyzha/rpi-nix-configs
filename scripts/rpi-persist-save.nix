@@ -21,14 +21,13 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
   fi
 
   # Strict whitelist of expected persistent paths (used when no arguments are given)
+  # Intentionally excludes volatile runtime state like AdGuard query logs (data/)
+  # and SSH host keys (already initialized on first boot) to prevent SD card wear.
   WHITELIST=(
     "secrets"
     "docker/swag/config/etc/letsencrypt"
     "docker/swag/config/nginx/proxy-confs"
     "docker/swag/config/dns-conf"
-    "var/lib/tailscale"
-    "var/lib/AdGuardHome"
-    "etc/ssh"
   )
 
   # Expand target aliases and normalize paths
@@ -54,8 +53,8 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
       tailscale)
         echo "var/lib/tailscale"
         ;;
-      adguard)
-        echo "var/lib/AdGuardHome"
+      adguard|adguard-config)
+        echo "var/lib/AdGuardHome/AdGuardHome.yaml"
         ;;
       ssh)
         echo "etc/ssh"
