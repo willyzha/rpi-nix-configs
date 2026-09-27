@@ -69,8 +69,36 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
   free -h
 
+  # Detect raw ext4 persistent filesystem (swapfiles cannot reside on an OverlayFS)
+  SWAP_DIR="/persist-raw"
+  if [ ! -d "$SWAP_DIR" ] || ! mountpoint -q "$SWAP_DIR"; then
+    SWAP_DIR="/persist"
+  fi
+  SWAP_FILE="$SWAP_DIR/.rebuild-swapfile"
+
+  remove_swap() {
+    if [ -f "$SWAP_FILE" ]; then
+      echo "==> Deactivating and removing temporary swap file..."
+      swapoff "$SWAP_FILE" 2>/dev/null || true
+      rm -f "$SWAP_FILE" 2>/dev/null || true
+    fi
+  }
+
+  echo "==> Allocating temporary 2GB swap file on $SWAP_DIR to guarantee OOM safety..."
+  remove_swap
+  if fallocate -l 2G "$SWAP_FILE" 2>/dev/null || dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none; then
+    chmod 600 "$SWAP_FILE"
+    mkswap "$SWAP_FILE" >/dev/null 2>&1
+    swapon "$SWAP_FILE" 2>/dev/null || true
+    echo "    Temporary swap active (secondary to zram):"
+    swapon --show 2>/dev/null || true
+  else
+    echo "    Warning: Could not create temporary swapfile; continuing with RAM+zram."
+  fi
+
   SUCCESS=false
   cleanup() {
+    remove_swap
     if [ "$SUCCESS" != "true" ]; then
       echo "==> Rebuild failed or was cancelled! Restoring stopped services..."
       for svc in "''${STOPPED_SERVICES[@]}"; do
@@ -90,6 +118,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
 
   SUCCESS=true
+  remove_swap
 
   if [ "$ACTION" = "boot" ]; then
     echo "==> Rebuild successful! System generation updated."
