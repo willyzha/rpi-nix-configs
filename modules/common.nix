@@ -32,6 +32,7 @@
     usePredictableInterfaceNames = lib.mkDefault false; # Keep eth0 interface name for SMSC9514 USB-Ethernet
     useDHCP = lib.mkDefault true; # Auto-detect IP, router gateway, and DNS on any network
     firewall.enable = false; # Disable internal firewall by default (handled by container/services)
+    nameservers = [ "192.168.1.11" "1.1.1.1" "9.9.9.9" ];
   };
 
   # Zero-config local network discovery (e.g., ssh pi@pi-primary.local)
@@ -347,19 +348,40 @@ EOF
         echo "Or copy from pi-primary:"
         echo "  sudo scp pi@192.168.1.11:$PROXY_CONFS_DIR/*.subdomain.conf $PROXY_CONFS_DIR/"
         echo
-        echo "After adding configs, reload Nginx with: sudo docker exec swag nginx -s reload"
       else
         echo "Found $CONF_COUNT active proxy configuration file(s) in:"
         echo "  $PROXY_CONFS_DIR"
         ls -1 "$PROXY_CONFS_DIR"/*.conf 2>/dev/null | sed 's/^/  - /'
       fi
+      # 5. Ensure logrotate stub files exist (required by Docker volume mounts to prevent exit status 125)
+      LOGROTATE_DIR="/persist/docker/swag/logrotate"
+      mkdir -p "$LOGROTATE_DIR/logrotate.d"
+      touch "$LOGROTATE_DIR/logrotate.conf" \
+            "$LOGROTATE_DIR/logrotate.d/fail2ban" \
+            "$LOGROTATE_DIR/logrotate.d/lerotate" \
+            "$LOGROTATE_DIR/logrotate.d/nginx" \
+            "$LOGROTATE_DIR/logrotate.d/php-fpm"
 
       echo
-      echo "==> SWAG private credentials successfully saved."
+      echo "==> SWAG credentials and volume stubs successfully saved."
       if systemctl list-unit-files | grep -q docker-swag.service; then
-        echo "==> Restarting docker-swag..."
-        systemctl restart docker-swag.service || true
-        echo "==> SWAG restarted. Run 'docker logs -f swag' to monitor certificate generation."
+        echo "==> Resetting failed units and restarting docker-swag.service..."
+        systemctl reset-failed docker-swag.service 2>/dev/null || true
+        systemctl restart docker-swag.service
+        echo
+        echo "=========================================="
+        echo "    Service Commands & Monitoring         "
+        echo "=========================================="
+        echo "1. On first run, SWAG requests wildcard SSL certificates via Cloudflare."
+        echo "   Monitor live startup and certificate generation with:"
+        echo "     sudo docker logs -f swag"
+        echo
+        echo "2. Once the container is running and initialized, reload Nginx after config edits with:"
+        echo "     sudo docker exec swag nginx -s reload"
+        echo
+        echo "3. To restart or start the SWAG service at any time:"
+        echo "     sudo systemctl restart docker-swag"
+        echo "=========================================="
       fi
     '')
   ];
