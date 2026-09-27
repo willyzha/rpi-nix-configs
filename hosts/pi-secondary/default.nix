@@ -42,7 +42,7 @@
   # ---------------------------------------------------------------------------
   fileSystems."/var/lib/AdGuardHome" = {
     device = "/persist/var/lib/AdGuardHome";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=5s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
+    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
     noCheck = true;
     depends = [ "/persist" ];
   };
