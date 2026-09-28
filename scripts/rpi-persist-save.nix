@@ -110,15 +110,11 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
       # Run rsync with itemize-changes (-i) to detect actual differences
       local CHANGES
       CHANGES=$(${pkgs.rsync}/bin/rsync -a -i --delete --no-specials --no-devices "$SRC/" "$DEST/" 2>&1 || true)
-      local REAL_CHANGES
-      REAL_CHANGES=$(echo "$CHANGES" | ${pkgs.gnugrep}/bin/grep -Ev "^\.d[ .]" || true)
-      if [ -n "$REAL_CHANGES" ]; then
-        local COUNT
-        COUNT=$(echo "$REAL_CHANGES" | ${pkgs.coreutils}/bin/wc -l)
-        echo "  [SAVED DIR]  /persist/$TARGET -> /persist-raw/$TARGET ($COUNT item(s) updated)"
+      if [ -n "$CHANGES" ]; then
+        echo "  [SAVED DIR]  /persist/$TARGET -> /persist-raw/$TARGET"
         COPIED_ANY=true
       else
-        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no file changes)"
+        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no copy needed)"
       fi
     else
       mkdir -p "$(dirname "$DEST")"

@@ -63,7 +63,7 @@ This setup prevents wear while preserving convenience:
 2. **Volatile RAM for Ephemeral State**: `/tmp`, `/var/cache`, and systemd journals live entirely in RAM (`tmpfs`), allowing services with `CacheDirectory=` (like Tailscale) to operate normally without flash wear.
 3. **OverlayFS on `/persist` with Zero Accidental SD Writes**: The `/persist` mount is backed by an OverlayFS. Runtime writes (logs, temporary container files, accidental writes) are absorbed into volatile RAM (`tmpfs`). Only explicit commits via `rpi-persist-save` (or built-in setup wizards) write to the physical SD card (`/persist-raw`).
 4. **Automated First-Boot Persistence**: The `PERSIST` partition is automatically created, formatted, and initialized on first boot, filling the remaining capacity of the SD card.
-5. **`rpi-rebuild` command**: Built-in helper that auto-detects the host, checks network and disk space, activates 3GB pre-allocated swap on `/persist-raw`, reclaims RAM by stopping heavy services, executes `nixos-rebuild`, restores read-only mounts, and reboots cleanly (with automatic rollback on failure).
+5. **`rpi-rebuild` command**: Built-in helper that auto-detects the host, checks network and disk space, allocates temporary 2GB swap on `/persist-raw`, reclaims RAM by stopping heavy services, executes `nixos-rebuild`, restores read-only mounts, and reboots cleanly (with automatic rollback on failure).
 6. **`rpi-persist-save` command**: Built-in helper to commit modified files/directories from the `/persist` overlay down to physical SD card storage (`/persist-raw`). Detects identical contents to prevent unnecessary flash writes.
 7. **`rpi-check-update` command**: Built-in helper that checks if the running system is in sync with the latest GitHub commit in ~0.3s via the Git wire protocol.
 8. **`rpi-vrrp-status` command**: Built-in helper that queries local network interfaces to report whether the node is `MASTER` or `BACKUP` for Keepalived.
@@ -124,23 +124,23 @@ When formatting or flashing an SD card for these configurations, partition label
 You do **not** need Nix, Docker, or any special tools installed on your computer. You can run the rebuild directly on the Pi via SSH:
 
 ```bash
-# Recommended: run inside tmux to protect against SSH disconnects:
-tmux
+# On either Pi (automatically detects pi-primary vs pi-secondary):
 sudo rpi-rebuild
 
-# Or directly:
-sudo rpi-rebuild
+# Or remotely via SSH:
+ssh pi@192.168.1.11 "sudo rpi-rebuild"
+ssh pi@192.168.1.12 "sudo rpi-rebuild"
 ```
 
 The built-in `rpi-rebuild` helper script automatically handles the entire lifecycle:
-1. **Pre-flight validation**: Checks for network connectivity, disk space (>=3.5GB free), and root privileges.
+1. **Pre-flight validation**: Checks for network connectivity, disk space (>=2.5GB free), and root privileges.
 2. **Overlay save**: Commits any pending persistent changes from RAM to the physical SD card via `rpi-persist-save`.
 3. **RAM reclamation**: Temporarily halts heavy services (Docker containers, AdGuard, Glances, Keepalived, NUT) and drops filesystem caches to free ~700MB+ of real physical RAM.
-4. **Pre-allocated 3GB swap**: Activates a contiguous 3GB swap file on `/persist-raw` (secondary to zram) using real zeroed blocks to eliminate ext4 holes and guarantee complete OOM safety during heavy Nix evaluation without recurring flash wear.
+4. **Temporary 2GB swap**: Dynamically allocates and enables a 2GB swap file on `/persist-raw` (secondary to zram) to guarantee OOM safety during heavy Nix evaluation. Aborts immediately if swap allocation fails to protect against kernel panics.
 5. **Read-write remount & validation**: Remounts `/` as `rw` and verifies filesystem writability (detecting ext4 journal locks).
-6. **Atomic generation build**: Rebuilds the system from GitHub with low CPU priority (`nice`) and memory trimming to protect SSH and system processes.
-7. **Cleanup & reboot**: Automatically deactivates the swapfile, restores read-only mounts, and reboots cleanly into the new generation.
-8. **Automatic trapped rollback**: If any prerequisite or build step fails at any point, the script immediately rolls back, restarts all stopped services, deactivates swap, and restores read-only mode.
+6. **Atomic generation build**: Rebuilds the system from GitHub using `--max-jobs 1 --cores 1`.
+7. **Cleanup & reboot**: Automatically deactivates and removes the 2GB swapfile, restores read-only mounts, and reboots cleanly into the new generation.
+8. **Automatic trapped rollback**: If any prerequisite or build step fails at any point, the script immediately rolls back, restarts all stopped services, removes the swapfile, and restores read-only mode.
 
 ### Check If System Is Up to Date With GitHub
 

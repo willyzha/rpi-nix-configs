@@ -6,27 +6,13 @@
   boot = {
     kernelPackages = lib.mkDefault pkgs.linuxKernel.packages.linux_rpi3;
 
-    initrd = {
-      includeDefaultModules = true;
-      kernelModules = [
-        "bcm2835"
-        "sdhci-iproc"
-        "mmc_block"
-        "ext4"
-      ];
-      availableKernelModules = [
-        "bcm2835"
-        "sdhci-iproc"
-        "mmc_block"
-        "bcm2835_dma"
-        "usbhid"
-        "usb_storage"
-        "uas"
-        "sd_mod"
-        "vc4"
-        "ext4"
-      ];
-    };
+    initrd.availableKernelModules = [
+      "mmc_block"
+      "bcm2835_dma"
+      "usbhid"
+      "usb_storage"
+      "vc4"
+    ];
 
     loader = {
       grub.enable = false;
@@ -40,16 +26,12 @@
     ];
   };
 
-  # Fix: ensure kmod.out (modprobe/depmod) is in PATH and nativeBuildInputs
-  # for makeModulesClosure, and allowMissing is true to safely handle custom RPi modules.
+  # Fix: modprobe: FATAL: Module ahci not found in directory
+  # On Raspberry Pi kernels, PC/SATA modules like ahci are not present.
+  # This overlay instructs makeModulesClosure to allow missing modules.
   nixpkgs.overlays = [
     (_final: super: {
-      makeModulesClosure = x: (super.makeModulesClosure (x // { allowMissing = true; })).overrideAttrs (old: {
-        nativeBuildInputs = [ (super.buildPackages.kmod or super.kmod).out ] ++ (old.nativeBuildInputs or [ ]);
-        preHook = ''
-          export PATH="${(super.buildPackages.kmod or super.kmod).out}/bin:${(super.buildPackages.kmod or super.kmod).out}/sbin:$PATH"
-        '';
-      });
+      makeModulesClosure = x: super.makeModulesClosure (x // { allowMissing = true; });
     })
   ];
 
