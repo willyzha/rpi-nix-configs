@@ -26,9 +26,15 @@
       trusted-users = [ "root" "@wheel" ];
     };
     gc = {
-      automatic = false; # Manual GC preferred to avoid unexpected SD writes
+      automatic = false;
     };
   };
+
+  # Expose configuration revision directly in /run/current-system/configuration-revision
+  system.extraSystemBuilderCmds = lib.optionalString (config.system.configurationRevision != null) ''
+    echo -n "${config.system.configurationRevision}" > $out/configuration-revision
+  '';
+
 
   # Networking
   networking = {

@@ -78,6 +78,21 @@
 
   # 2. Glances System Monitor (~45MB RAM, runs natively via systemd)
   environment.etc."glances/glances.conf".text = ''
+    [global]
+    check_update=false
+
+    [network]
+    # Hide loopback, docker virtual interfaces, and unused wireless
+    hide=lo,docker.*,veth.*,br-.*,wlan.*,dummy.*
+
+    [diskio]
+    # Hide loop devices, RAM disks, and partition-level stats (keep physical drive mmcblk0)
+    hide=loop.*,zram.*,ram.*,mmcblk0p.*
+
+    [fs]
+    # Hide boot firmware and duplicate /nix/store (mounted on same partition as /)
+    hide=/boot.*,/nix/store
+
     [ports]
     disable=False
     refresh=10

@@ -5,6 +5,7 @@
 
   boot = {
     kernelPackages = lib.mkDefault pkgs.linuxKernel.packages.linux_rpi3;
+    supportedFilesystems = lib.mkForce [ "ext4" "vfat" ];
 
     initrd.availableKernelModules = [
       "mmc_block"

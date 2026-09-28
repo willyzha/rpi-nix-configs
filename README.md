@@ -75,8 +75,15 @@ This setup prevents wear while preserving convenience:
 
 ```
 rpi-nix-configs/
+├── .env.example                      # Configuration template for Docker deployments
 ├── .gitignore                        # Prevents secrets and build artifacts from git
+├── docker-compose.yml                # Host-side Docker Compose setup for building & deploying
+├── docker-rebuild.sh                 # Convenient 1-line rebuild wrapper script
 ├── flake.nix                         # Flake entry point (pi-primary & pi-secondary)
+├── docker/
+│   ├── Dockerfile                    # Containerized Nix build & deployment environment
+│   ├── deploy.sh                     # Automated lifecycle script (RW remount, build, copy, switch, RO remount, reboot)
+│   └── nix.conf                      # Optimized Nix config for cross-architecture builds & binary caching
 ├── modules/
 │   ├── sd-protection.nix             # Read-only root, OverlayFS, tmpfs mounts, rpi-persist-save, rpi-rebuild
 │   ├── common.nix                    # Common base (user pi, ssh keys, zram, VMAC sysctl, timezone, tools)
@@ -119,9 +126,58 @@ When formatting or flashing an SD card for these configurations, partition label
 
 ## Applying Updates
 
-### Native Rebuild Directly on the Pi (Zero Setup on Your Computer)
+### 🌟 Recommended Method: Host Rebuild via Docker (Zero RAM / Brownout Issues)
 
-You do **not** need Nix, Docker, or any special tools installed on your computer. You can run the rebuild directly on the Pi via SSH:
+Building directly on a 1GB Raspberry Pi 3B often triggers **Out-Of-Memory (OOM) crashes**, excessive SD card swap wear, and **voltage drop brownouts** when high CPU spikes exceed micro-USB power delivery.
+
+To solve this, a complete **Docker Compose environment** is included in the repository. It performs all evaluation, binary caching, and cross-architecture compilation on your host computer (fast CPU, plenty of RAM, NVMe speeds) and transfers only the finished system closure to the Pi over SSH.
+
+> [!TIP]
+> **Zero Host Dependencies**: You only need **Docker** and **Docker Compose** installed on your host. You do **not** need Nix, QEMU, Python, or any other tools installed locally.
+
+#### Quick Start (Auto-Detect by IP)
+
+Simply pass the IP address of the target Pi. The script queries the node over SSH, auto-detects whether it is `pi-primary` or `pi-secondary`, builds the appropriate configuration on your host, transfers the delta, and cleanly reboots it into the new generation:
+
+```bash
+# Update secondary Pi (auto-detects pi-secondary):
+./docker-rebuild.sh 192.168.1.12
+
+# Update primary Pi (auto-detects pi-primary):
+./docker-rebuild.sh 192.168.1.11
+
+# Or use hostname / compose directly:
+./docker-rebuild.sh pi-primary
+./docker-rebuild.sh pi-secondary
+```
+
+#### Common Commands & Options
+
+| Command | Action Description |
+| :--- | :--- |
+| `./docker-rebuild.sh 192.168.1.12` | **(Default: `boot`)** Auto-detects node from IP, builds on host, copies closure, reboots node. |
+| `./docker-rebuild.sh 192.168.1.12 switch` | Auto-detects node from IP, builds on host, and switches running services immediately (no reboot). |
+| `./docker-rebuild.sh 192.168.1.12 test` | Tests build and activates services temporarily without modifying bootloader. |
+| `./docker-rebuild.sh pi-primary build-only` | Verifies and builds the NixOS system locally in Docker without connecting to the Pi (~2s cached). |
+| `./docker-rebuild.sh pi-primary image` | Generates the bootable SD card image (`.img.zst`) in `./output/` for fresh SD card flashing. |
+| `docker compose run --rm shell` | Drops into an interactive bash shell in the Nix container for debugging. |
+
+#### How the Docker Rebuild Workflow Operates
+
+1. **Automatic ARM64 Emulation**: Uses `tonistiigi/binfmt` to register `qemu-aarch64` in the kernel so any `aarch64` derivation can run seamlessly on your `x86_64` host.
+2. **Persistent Store Cache**: Mounts named volume `rpi-nix-store` and `rpi-nix-cache` so packages and flakes downloaded once are cached permanently across rebuilds.
+3. **Pre-flight Connectivity Check**: Tests SSH authentication with `root@$TARGET_IP` before compiling anything.
+4. **SD Protection RW Remount**: Automatically remounts the target's `/` and `/boot/firmware` partitions as `rw` over SSH so the store paths can be received.
+5. **Host-Side Build**: Evaluates and builds the system toplevel using your host machine's full CPU and RAM in seconds.
+6. **Network Closure Copy**: Pushes only the changed store paths to the Pi via `nix copy` over SSH.
+7. **Clean Profile Activation**: Registers the new NixOS generation and executes `switch-to-configuration boot` (or `switch`).
+8. **Restores Read-Only Protection & Reboots**: Automatically remounts the Pi's partitions back to Read-Only (`ro`), syncs disks, and (if `boot` action) initiates a clean reboot. Includes an automatic signal trap to ensure partitions are never left read-write if interrupted!
+
+---
+
+### Alternative Method: Native Rebuild Directly on the Pi (Standalone Fallback)
+
+If your host computer is unavailable, you can still run the rebuild directly on the Pi via SSH:
 
 ```bash
 # On either Pi (automatically detects pi-primary vs pi-secondary):
