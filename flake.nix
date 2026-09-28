@@ -14,7 +14,6 @@
         pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            ./modules/sd-image.nix
             ./hosts/pi-primary/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
@@ -26,7 +25,6 @@
         pi-secondary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
-            ./modules/sd-image.nix
             ./hosts/pi-secondary/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
@@ -35,10 +33,29 @@
         };
       };
 
-      # Direct image package shortcuts for easy building
+      # Direct image package shortcuts for easy building (GitHub Actions releases)
       packages.${system} = {
-        pi-primary-image = self.nixosConfigurations.pi-primary.config.system.build.sdImage;
-        pi-secondary-image = self.nixosConfigurations.pi-secondary.config.system.build.sdImage;
+        pi-primary-image = (nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./modules/sd-image.nix
+            ./hosts/pi-primary/default.nix
+            ({ ... }: {
+              system.configurationRevision = self.rev or self.dirtyRev or null;
+            })
+          ];
+        }).config.system.build.sdImage;
+
+        pi-secondary-image = (nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./modules/sd-image.nix
+            ./hosts/pi-secondary/default.nix
+            ({ ... }: {
+              system.configurationRevision = self.rev or self.dirtyRev or null;
+            })
+          ];
+        }).config.system.build.sdImage;
       };
     };
 }
