@@ -7,12 +7,22 @@
     kernelPackages = lib.mkDefault pkgs.linuxKernel.packages.linux_rpi3;
 
     initrd = {
-      includeDefaultModules = false; # Do not pull in x86/PC SATA, AHCI, NVMe drivers not in RPi kernel
+      includeDefaultModules = true;
+      kernelModules = [
+        "bcm2835"
+        "sdhci-iproc"
+        "mmc_block"
+        "ext4"
+      ];
       availableKernelModules = [
+        "bcm2835"
+        "sdhci-iproc"
         "mmc_block"
         "bcm2835_dma"
         "usbhid"
         "usb_storage"
+        "uas"
+        "sd_mod"
         "vc4"
         "ext4"
       ];
