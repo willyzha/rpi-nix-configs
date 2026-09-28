@@ -28,15 +28,6 @@
     };
   };
 
-  # Kernel IP forwarding and routing marks for WireGuard, with loose rp_filter
-  boot.kernel.sysctl = {
-    "net.ipv4.ip_forward" = 1;
-    "net.ipv4.conf.all.src_valid_mark" = 1;
-    "net.ipv4.conf.all.rp_filter" = 2;
-    "net.ipv4.conf.default.rp_filter" = 2;
-    "net.ipv4.conf.eth0.rp_filter" = 2;
-  };
-
   # ---------------------------------------------------------------------------
   # State Persistence for Native Services (Bind-mounted from /persist)
   # ---------------------------------------------------------------------------
