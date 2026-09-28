@@ -66,6 +66,20 @@ EOF
     echo "  [OK]      /persist/secrets/swag.env"
   fi
 
+  # MQTT broker configuration for Home Assistant telemetry
+  if [ ! -f /persist/secrets/mqtt.env ]; then
+    cat <<'EOF' > /persist/secrets/mqtt.env
+MQTT_HOST=192.168.1.X
+MQTT_PORT=1883
+MQTT_USER=
+MQTT_PASS=
+EOF
+    chmod 600 /persist/secrets/mqtt.env
+    echo "  [CREATED] /persist/secrets/mqtt.env (default: 192.168.1.X:1883)"
+  else
+    echo "  [OK]      /persist/secrets/mqtt.env"
+  fi
+
   echo "==> All secret files verified."
   if command -v rpi-persist-save >/dev/null 2>&1; then
     rpi-persist-save secrets

@@ -76,68 +76,6 @@
     };
   };
 
-  # 2. Glances System Monitor (~45MB RAM, runs natively via systemd)
-  environment.etc."glances/glances.conf".text = ''
-    [global]
-    check_update=false
-
-    [network]
-    # Hide loopback, docker virtual interfaces, and unused wireless
-    hide=lo,docker.*,veth.*,br-.*,wlan.*,dummy.*
-
-    [diskio]
-    # Hide loop devices, RAM disks, and partition-level stats (keep physical drive mmcblk0)
-    hide=loop.*,zram.*,ram.*,mmcblk0p.*
-
-    [fs]
-    # Hide boot firmware and duplicate /nix/store (mounted on same partition as /)
-    hide=/boot.*,/nix/store
-
-    [ports]
-    disable=False
-    refresh=10
-    timeout=2
-    port_default_gateway=False
-
-    port_1_host=127.0.0.1
-    port_1_port=53
-    port_1_description=AdGuard DNS
-
-    port_2_host=127.0.0.1
-    port_2_port=443
-    port_2_description=SWAG HTTPS
-
-    port_3_host=127.0.0.1
-    port_3_port=3000
-    port_3_description=AdGuard Web UI
-
-    port_4_host=127.0.0.1
-    port_4_port=61208
-    port_4_description=Glances Monitor
-
-    [amp_vrrp]
-    enable=true
-    refresh=3
-    one_line=true
-    command=/run/current-system/sw/bin/rpi-vrrp-status
-
-    [amp_services]
-    enable=true
-    refresh=5
-    one_line=true
-    command=/run/current-system/sw/bin/rpi-services-status
-  '';
-
-  systemd.services.glances = {
-    description = "Glances System Monitor";
-    after = [ "network.target" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      ExecStart = "${pkgs.glances}/bin/glances -w -p 61208 -C /etc/glances/glances.conf";
-      Restart = "always";
-      RestartSec = 5;
-    };
-  };
 
   # 3. AdGuard Home (~15MB RAM, secondary DNS resolver, web UI on port 3000)
   services.adguardhome = {
