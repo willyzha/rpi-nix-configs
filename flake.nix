@@ -16,6 +16,9 @@
           modules = [
             ./modules/sd-image.nix
             ./hosts/pi-primary/default.nix
+            ({ ... }: {
+              system.configurationRevision = self.rev or self.dirtyRev or null;
+            })
           ];
         };
 
@@ -25,6 +28,9 @@
           modules = [
             ./modules/sd-image.nix
             ./hosts/pi-secondary/default.nix
+            ({ ... }: {
+              system.configurationRevision = self.rev or self.dirtyRev or null;
+            })
           ];
         };
       };

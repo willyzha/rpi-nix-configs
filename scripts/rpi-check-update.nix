@@ -4,63 +4,55 @@ pkgs.writeShellScriptBin "rpi-check-update" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
-  # Ensure nix can create evaluation cache in RAM even when root / is read-only
+  # Ensure nix can query metadata in RAM even when root / is read-only
   export XDG_CACHE_HOME="''${XDG_CACHE_HOME:-/tmp/.cache}"
 
-  SHOW_DIFF=false
-  HOST=""
-
-  for arg in "$@"; do
-    case "$arg" in
-      -d|--diff)
-        SHOW_DIFF=true
-        ;;
-      -h|--help)
-        echo "Usage: rpi-check-update [-d|--diff] [hostname]"
-        echo "Checks if the current running system is up to date with the latest GitHub configuration."
-        exit 0
-        ;;
-      *)
-        HOST="$arg"
-        ;;
-    esac
-  done
-
-  HOST="''${HOST:-$(hostname)}"
   FLAKE_REF="github:willyzha/rpi-nix-configs"
 
-  echo "==> Checking latest GitHub configuration for $HOST..."
+  echo "==> Querying latest GitHub commit for $FLAKE_REF..."
 
-  CURRENT=$(${pkgs.coreutils}/bin/readlink -f /run/current-system)
-  LATEST=$(${pkgs.nix}/bin/nix path-info "$FLAKE_REF#nixosConfigurations.$HOST.config.system.build.toplevel" --refresh 2>/dev/null || true)
+  # Query latest commit info from GitHub via flake metadata (~1-2 seconds, no heavy NixOS evaluation)
+  META=$(${pkgs.nix}/bin/nix flake metadata "$FLAKE_REF" --refresh --json 2>/dev/null || true)
 
-  if [ -z "$LATEST" ]; then
-    echo "Error: Failed to query latest build from $FLAKE_REF for host '$HOST'." >&2
-    echo "Check network connectivity to github.com." >&2
+  if [ -z "$META" ]; then
+    echo "Error: Failed to fetch metadata from $FLAKE_REF. Check network connectivity." >&2
     exit 2
   fi
 
+  LATEST_REV=$(echo "$META" | ${pkgs.jq}/bin/jq -r '.revision // "unknown"')
+  LATEST_TIME=$(echo "$META" | ${pkgs.jq}/bin/jq -r '.lastModified // 0')
+  LATEST_DATE=""
+  if [ "$LATEST_TIME" -gt 0 ]; then
+    LATEST_DATE=$(date -d "@$LATEST_TIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "")
+  fi
+
+  # Read running system's baked-in configuration revision
+  CURRENT_REV=""
+  if [ -f /run/current-system/configuration-revision ]; then
+    CURRENT_REV=$(cat /run/current-system/configuration-revision)
+  fi
+
   echo ""
-  echo "Running System: $CURRENT"
-  echo "Latest GitHub:  $LATEST"
+  if [ -n "$CURRENT_REV" ]; then
+    echo "Running System Commit: $CURRENT_REV"
+  else
+    echo "Running System Commit: (unknown - generation built before commit tracking)"
+  fi
+
+  if [ -n "$LATEST_DATE" ]; then
+    echo "Latest GitHub Commit:  $LATEST_REV ($LATEST_DATE)"
+  else
+    echo "Latest GitHub Commit:  $LATEST_REV"
+  fi
   echo ""
 
-  if [ "$CURRENT" = "$LATEST" ]; then
-    echo "✅ System is up to date with the latest GitHub changes!"
+  if [ -n "$CURRENT_REV" ] && [ "$CURRENT_REV" = "$LATEST_REV" ]; then
+    echo "✅ System is up to date with the latest GitHub commit!"
     exit 0
   else
     echo "⚠️ Update available on GitHub!"
     echo "   To apply this update, run:"
-    echo "   sudo rpi-rebuild boot $FLAKE_REF#$HOST"
-
-    if [ "$SHOW_DIFF" = "true" ]; then
-      echo ""
-      echo "==> File diffs (/etc):"
-      ${pkgs.diffutils}/bin/diff -ru "$CURRENT/etc" "$LATEST/etc" 2>/dev/null || true
-    else
-      echo ""
-      echo "   Tip: Pass '--diff' to inspect file changes: rpi-check-update --diff"
-    fi
+    echo "   sudo rpi-rebuild"
     exit 1
   fi
 ''
