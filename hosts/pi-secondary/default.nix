@@ -79,6 +79,8 @@
       extraConfig = ''
         include /persist/secrets/keepalived-auth.conf
         nopreempt
+        use_vmac
+        vmac_xmit_base
       '';
     };
   };
