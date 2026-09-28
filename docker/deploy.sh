@@ -128,13 +128,20 @@ fi
 git config --global --add safe.directory /workspace 2>/dev/null || true
 git config --global --add safe.directory '*' 2>/dev/null || true
 
-# Verify flake.nix exists in /workspace
-if [ ! -f "/workspace/flake.nix" ]; then
-  echo -e "${RED}Error: /workspace/flake.nix not found! Please mount the repository root to /workspace.${NC}" >&2
-  exit 1
+# Determine flake reference (local workspace or remote GitHub repository)
+FLAKE_REF="${FLAKE_REF:-}"
+if [ -z "$FLAKE_REF" ]; then
+  if [ -f "/workspace/flake.nix" ]; then
+    FLAKE_REF="/workspace"
+  else
+    FLAKE_REF="github:willyzha/rpi-nix-configs"
+  fi
 fi
 
-cd /workspace
+if [[ "$FLAKE_REF" == "/workspace" ]]; then
+  cd /workspace
+  git config --global --add safe.directory /workspace 2>/dev/null || true
+fi
 
 # Check if host ssh-agent socket is forwarded
 if [ -S "/ssh-agent" ]; then
@@ -210,6 +217,7 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
   echo -e "${BLUE}${BOLD}================================================================${NC}"
   echo -e "  Connecting To : ${BOLD}$TARGET_IP${NC} (user: $TARGET_USER)"
   echo -e "  Action        : ${BOLD}$ACTION${NC}"
+  echo -e "  Flake Source  : ${BOLD}$FLAKE_REF${NC}"
   if [ -n "${SSH_AUTH_SOCK:-}" ]; then
     echo -e "  SSH Agent     : ${GREEN}Active (forwarded socket)${NC}"
   fi
@@ -280,13 +288,14 @@ else
   echo -e "${BLUE}${BOLD}================================================================${NC}"
   echo -e "  Target Config : ${BOLD}$TARGET_HOST${NC}"
   echo -e "  Action        : ${BOLD}$ACTION${NC}"
+  echo -e "  Flake Source  : ${BOLD}$FLAKE_REF${NC}"
   echo -e "${BLUE}----------------------------------------------------------------${NC}"
 fi
 
-# Verify TARGET_HOST exists in flake.nix
-if ! nix eval --extra-experimental-features "nix-command flakes" ".#nixosConfigurations.${TARGET_HOST}.config.networking.hostName" >/dev/null 2>&1; then
-  echo -e "${RED}Error: NixOS configuration '${TARGET_HOST}' not found in flake.nix!${NC}" >&2
-  echo -e "  Available configurations in flake.nix:" >&2
+# Verify TARGET_HOST exists in flake
+if ! nix eval --extra-experimental-features "nix-command flakes" "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.networking.hostName" >/dev/null 2>&1; then
+  echo -e "${RED}Error: NixOS configuration '${TARGET_HOST}' not found in flake (${FLAKE_REF})!${NC}" >&2
+  echo -e "  Available configurations in flake:" >&2
   echo -e "    - pi-primary" >&2
   echo -e "    - pi-secondary" >&2
   exit 1
@@ -297,21 +306,25 @@ fi
 # ------------------------------------------------------------------------------
 if [ "$ACTION" = "image" ]; then
   echo -e "\n${GREEN}==> Building bootable SD card image for ${TARGET_HOST}...${NC}"
-  mkdir -p /workspace/output
+  OUTPUT_DIR="/workspace/output"
+  if [ ! -d "/workspace" ]; then
+    OUTPUT_DIR="/tmp/output"
+  fi
+  mkdir -p "$OUTPUT_DIR"
   nix build \
     --extra-experimental-features "nix-command flakes" \
     --option extra-platforms "aarch64-linux armv7l-linux" \
-    --out-link "/workspace/output/${TARGET_HOST}-sd-image" \
-    ".#packages.aarch64-linux.${TARGET_HOST}-image"
+    --out-link "${OUTPUT_DIR}/${TARGET_HOST}-sd-image" \
+    "${FLAKE_REF}#packages.aarch64-linux.${TARGET_HOST}-image"
 
   echo -e "\n${GREEN}${BOLD}==> SD Card Image Built Successfully!${NC}"
-  IMAGE_FILE=$(find "/workspace/output/${TARGET_HOST}-sd-image" -name "*.img.zst" -o -name "*.img" 2>/dev/null | head -n 1 || true)
+  IMAGE_FILE=$(find "${OUTPUT_DIR}/${TARGET_HOST}-sd-image" -name "*.img.zst" -o -name "*.img" 2>/dev/null | head -n 1 || true)
   if [ -n "$IMAGE_FILE" ]; then
     echo -e "  Image Location: ${BOLD}$IMAGE_FILE${NC}"
     echo -e "  To flash to an SD card (e.g. /dev/sdX):"
     echo -e "    zstdcat $IMAGE_FILE | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync"
   else
-    echo -e "  Image outputs available in: ${BOLD}/workspace/output/${TARGET_HOST}-sd-image${NC}"
+    echo -e "  Image outputs available in: ${BOLD}${OUTPUT_DIR}/${TARGET_HOST}-sd-image${NC}"
   fi
   exit 0
 fi
@@ -326,7 +339,7 @@ if [[ "$ACTION" == "build-only" || "$ACTION" == "build" ]]; then
     --option extra-platforms "aarch64-linux armv7l-linux" \
     --no-link \
     --print-out-paths \
-    ".#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
+    "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
 
   echo -e "\n${GREEN}${BOLD}==> Build Completed Successfully!${NC}"
   echo -e "  System Toplevel: ${BOLD}$TOPLEVEL${NC}"
@@ -365,7 +378,7 @@ TOPLEVEL=$(nix build \
   --option extra-platforms "aarch64-linux armv7l-linux" \
   --no-link \
   --print-out-paths \
-  ".#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
+  "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
 
 BUILD_DURATION=$(( $(date +%s) - START_TIME ))
 echo -e "  Host build finished in ${BOLD}${BUILD_DURATION}s${NC}: $TOPLEVEL"
