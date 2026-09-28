@@ -66,19 +66,20 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   if [ ! -d "$SWAP_DIR" ] || ! mountpoint -q "$SWAP_DIR"; then
     SWAP_DIR="/persist"
   fi
-  SWAP_FILE="$SWAP_DIR/.swapfile"
+  SWAP_FILE="$SWAP_DIR/.rebuild-swapfile"
 
-  deactivate_swap() {
-    if [ "$SWAP_ACTIVE" = "true" ]; then
-      echo "==> Deactivating swap..."
+  remove_swap() {
+    if [ "$SWAP_ACTIVE" = "true" ] || [ -f "$SWAP_FILE" ]; then
+      echo "==> Deactivating and removing temporary swap file..."
       swapoff "$SWAP_FILE" 2>/dev/null || true
+      rm -f "$SWAP_FILE" 2>/dev/null || true
       SWAP_ACTIVE=false
     fi
   }
 
   cleanup() {
     local EXIT_CODE=$?
-    deactivate_swap
+    remove_swap
 
     if [ "$SUCCESS" != "true" ]; then
       echo ""
@@ -124,15 +125,13 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     rpi-persist-save || true
   fi
 
-  # Pre-requisite 3: Disk space check on $SWAP_DIR (need at least 3.5GB free if swapfile needs creation)
-  echo "==> Verifying disk space on $SWAP_DIR for swap..."
-  if [ ! -f "$SWAP_FILE" ]; then
-    FREE_KB=$(df -k "$SWAP_DIR" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
-    if [ "$FREE_KB" -lt 3500000 ]; then
-      echo "Error: Insufficient free space on $SWAP_DIR ($((FREE_KB / 1024))MB free; need at least 3500MB to create swap)." >&2
-      echo "Aborting to prevent disk-full errors." >&2
-      exit 1
-    fi
+  # Pre-requisite 3: Disk space check on $SWAP_DIR (need at least 2.5GB free for swapfile)
+  echo "==> Verifying disk space on $SWAP_DIR for temporary swap..."
+  FREE_KB=$(df -k "$SWAP_DIR" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
+  if [ "$FREE_KB" -lt 2500000 ]; then
+    echo "Error: Insufficient free space on $SWAP_DIR ($((FREE_KB / 1024))MB free; need at least 2500MB)." >&2
+    echo "Aborting to prevent disk-full errors." >&2
+    exit 1
   fi
 
   # Pre-requisite 4: Stop heavy services to free maximum physical RAM (~700MB+ free)
@@ -176,38 +175,27 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
   free -h
 
-  # Pre-requisite 5: Activate 3GB contiguous swap (MANDATORY for 1GB Pi 3B)
-  echo "==> Checking 3GB swap file on $SWAP_DIR to guarantee OOM safety..."
-  SWAP_SIZE_BYTES=0
-  if [ -f "$SWAP_FILE" ]; then
-    SWAP_SIZE_BYTES=$(stat -c %s "$SWAP_FILE" 2>/dev/null || echo 0)
+  # Pre-requisite 5: Allocate and activate temporary 2GB swap (MANDATORY for 1GB Pi 3B)
+  echo "==> Allocating temporary 2GB swap file on $SWAP_DIR to guarantee OOM safety..."
+  remove_swap
+  if ! fallocate -l 2G "$SWAP_FILE" 2>/dev/null && ! dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none; then
+    echo "Error: Failed to create 2GB swapfile at $SWAP_FILE!" >&2
+    echo "Aborting rebuild to prevent out-of-memory kernel freeze." >&2
+    exit 1
   fi
 
-  # 3GB = 3221225472 bytes (using dd to write real zeroes; avoids ext4 fallocate unwritten extent holes)
-  if [ "$SWAP_SIZE_BYTES" -lt 3221225472 ]; then
-    echo "    Allocating 3GB contiguous swap file via dd (guarantees zero holes on ext4)..."
-    swapoff "$SWAP_FILE" 2>/dev/null || true
-    rm -f "$SWAP_FILE" 2>/dev/null || true
-    if ! dd if=/dev/zero of="$SWAP_FILE" bs=1M count=3072 status=progress; then
-      echo "Error: Failed to create 3GB swapfile at $SWAP_FILE!" >&2
-      rm -f "$SWAP_FILE" 2>/dev/null || true
-      exit 1
-    fi
-    chmod 600 "$SWAP_FILE"
-    mkswap "$SWAP_FILE" >/dev/null 2>&1
-  else
-    echo "    Reusing existing pre-allocated 3GB swap file (0s allocation overhead)."
+  chmod 600 "$SWAP_FILE"
+  if ! mkswap "$SWAP_FILE" >/dev/null 2>&1; then
+    echo "Error: mkswap failed on $SWAP_FILE!" >&2
+    exit 1
   fi
 
   if ! swapon "$SWAP_FILE" 2>/dev/null; then
-    mkswap "$SWAP_FILE" >/dev/null 2>&1 || true
-    if ! swapon "$SWAP_FILE" 2>/dev/null; then
-      echo "Error: swapon failed for $SWAP_FILE!" >&2
-      exit 1
-    fi
+    echo "Error: swapon failed for $SWAP_FILE!" >&2
+    exit 1
   fi
   SWAP_ACTIVE=true
-  echo "    Swap active (secondary to zram):"
+  echo "    Temporary swap active (secondary to zram):"
   swapon --show 2>/dev/null || true
 
   # Pre-requisite 6: Remount root as Read-Write and verify writability
@@ -240,12 +228,10 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
 
   echo "==> All pre-requisite checks passed! Starting NixOS build..."
   echo "==> Applying NixOS configuration ($ACTION) for $FLAKE_TARGET..."
-  
-  # Run nixos-rebuild with lower CPU priority so SSH and network packets take priority
-  MALLOC_TRIM_THRESHOLD_=131072 nice -n 10 nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
+  nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
 
   SUCCESS=true
-  deactivate_swap
+  remove_swap
 
   if [ "$ACTION" = "boot" ]; then
     echo "==> Rebuild successful! System generation updated."
