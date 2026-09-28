@@ -13,7 +13,7 @@
   # Enable zram compressed swap to prevent OOM on 1GB RAM Pi 3 (compressed RAM, zero SD wear)
   zramSwap = {
     enable = true;
-    algorithm = "zstd";
+    algorithm = "lzo-rle"; # Fast, low-overhead compression optimal for ARM Cortex-A53
     memoryPercent = 100;
   };
 
@@ -25,6 +25,8 @@
       warn-dirty = false;
       trusted-users = [ "root" "@wheel" ];
     };
+    daemonIOSchedClass = "idle"; # Prevent nix-daemon from starving SSH and network buffers of disk I/O
+    daemonCPUSchedPolicy = "idle"; # Prevent nix-daemon from starving system services of CPU
     gc = {
       automatic = false; # Manual GC preferred to avoid unexpected SD writes
     };
@@ -74,6 +76,8 @@
     settings = {
       PermitRootLogin = "prohibit-password";
       PasswordAuthentication = true;
+      ClientAliveInterval = 15;
+      ClientAliveCountMax = 20;
     };
   };
 
