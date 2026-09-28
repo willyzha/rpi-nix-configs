@@ -4,14 +4,49 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
-  ACTION="''${1:-boot}"
-  FLAKE_TARGET="''${2:-.#}"
-  shift 2 2>/dev/null || true
+  # Automatically detect which Pi node we are running on (pi-primary or pi-secondary)
+  CURRENT_HOST="$(hostname)"
+  DEFAULT_FLAKE="github:willyzha/rpi-nix-configs#$CURRENT_HOST"
+
+  ACTION="boot"
+  FLAKE_TARGET=""
+
+  # Flexible argument parsing:
+  #   sudo rpi-rebuild                     -> boots github:...#<current-host>
+  #   sudo rpi-rebuild test                -> tests github:...#<current-host>
+  #   sudo rpi-rebuild switch              -> maps to boot github:...#<current-host>
+  #   sudo rpi-rebuild boot .#             -> explicitly specify local flake
+  #   sudo rpi-rebuild github:...#target   -> explicitly specify target flake
+  if [ $# -ge 1 ]; then
+    case "$1" in
+      boot|switch|test|build|dry-build|dry-activate)
+        ACTION="$1"
+        shift
+        if [ $# -ge 1 ]; then
+          FLAKE_TARGET="$1"
+          shift
+        fi
+        ;;
+      *#*|.*|github:*)
+        FLAKE_TARGET="$1"
+        shift
+        ;;
+      *)
+        ACTION="$1"
+        shift
+        ;;
+    esac
+  fi
+
+  FLAKE_TARGET="''${FLAKE_TARGET:-$DEFAULT_FLAKE}"
 
   # If action is 'switch', map to 'boot' since we reboot cleanly after a successful build
   if [ "$ACTION" = "switch" ]; then
     ACTION="boot"
   fi
+
+  echo "==> Target host: $CURRENT_HOST"
+  echo "==> Flake target: $FLAKE_TARGET ($ACTION)"
 
   echo "==> Saving any pending /persist overlay changes to SD card before rebuild..."
   if command -v rpi-persist-save >/dev/null 2>&1; then

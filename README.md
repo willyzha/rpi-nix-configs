@@ -108,17 +108,12 @@ When formatting or flashing an SD card for these configurations, partition label
 You do **not** need Nix, Docker, or any special tools installed on your computer. You can run the rebuild directly on the Pi via SSH:
 
 ```bash
-# On pi-primary:
-sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-primary
+# On either Pi (automatically detects pi-primary vs pi-secondary):
+sudo rpi-rebuild
 
-# On pi-secondary:
-sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-secondary
-```
-
-Or trigger it remotely from any computer with a standard SSH command:
-
-```bash
-ssh pi@pi-primary.local "sudo rpi-rebuild switch github:willyzha/rpi-nix-configs#pi-primary"
+# Or remotely via SSH:
+ssh pi@192.168.1.11 "sudo rpi-rebuild"
+ssh pi@192.168.1.12 "sudo rpi-rebuild"
 ```
 
 The built-in `rpi-rebuild` helper script automatically handles the entire lifecycle:
