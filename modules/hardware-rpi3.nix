@@ -30,12 +30,15 @@
     ];
   };
 
-  # Fix: ensure kmod (modprobe/depmod) is in nativeBuildInputs for makeModulesClosure
-  # and allowMissing is true to safely handle custom RPi modules.
+  # Fix: ensure kmod.out (modprobe/depmod) is in PATH and nativeBuildInputs
+  # for makeModulesClosure, and allowMissing is true to safely handle custom RPi modules.
   nixpkgs.overlays = [
     (_final: super: {
       makeModulesClosure = x: (super.makeModulesClosure (x // { allowMissing = true; })).overrideAttrs (old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ super.kmod ];
+        nativeBuildInputs = [ (super.buildPackages.kmod or super.kmod).out ] ++ (old.nativeBuildInputs or [ ]);
+        preHook = ''
+          export PATH="${(super.buildPackages.kmod or super.kmod).out}/bin:${(super.buildPackages.kmod or super.kmod).out}/sbin:$PATH"
+        '';
       });
     })
   ];
