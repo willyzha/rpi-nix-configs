@@ -4,7 +4,7 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
-  if [ "$EUID" -ne 0 ]; then
+  if [ "''${EUID:-$(id -u)}" -ne 0 ]; then
     echo "Error: Please run as root (e.g. sudo rpi-persist-save [targets...])" >&2
     exit 1
   fi
@@ -21,8 +21,6 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
   fi
 
   # Strict whitelist of expected persistent paths (used when no arguments are given)
-  # Intentionally excludes volatile runtime state like AdGuard query logs (data/)
-  # and SSH host keys (already initialized on first boot) to prevent SD card wear.
   WHITELIST=(
     "secrets"
     "docker/swag/config/etc/letsencrypt"
@@ -68,6 +66,8 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     esac
   }
 
+  COPIED_ANY=false
+
   save_single_path() {
     local TARGET="$1"
     TARGET="''${TARGET#/persist/}"
@@ -86,42 +86,58 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
 
     # Handle deletion of a target file/folder (whiteout device in overlay)
     if [ -c "$UPPER_PATH" ]; then
-      echo "  [DELETED] /persist-raw/$TARGET"
+      echo "  [DELETED] /persist-raw/$TARGET (reflecting overlay deletion)"
       rm -rf "$DEST"
+      COPIED_ANY=true
       return 0
     fi
 
     # Handle whiteout deletions within directory targets
     if [ -d "$UPPER_PATH" ]; then
-      find "$UPPER_PATH" -type c 2>/dev/null | while read -r wh; do
+      while read -r wh; do
+        [ -n "$wh" ] || continue
         local rel="''${wh#"$UPPER_DIR/"}"
         if [ -e "/persist-raw/$rel" ]; then
-          echo "  [DELETED] /persist-raw/$rel"
+          echo "  [DELETED] /persist-raw/$rel (reflecting overlay deletion)"
           rm -rf "/persist-raw/$rel"
+          COPIED_ANY=true
         fi
-      done
+      done < <(find "$UPPER_PATH" -type c 2>/dev/null || true)
     fi
 
     if [ -d "$SRC" ]; then
-      echo "  [SAVE DIR]  /persist/$TARGET -> /persist-raw/$TARGET"
       mkdir -p "$DEST"
-      ${pkgs.rsync}/bin/rsync -a --delete --no-specials --no-devices "$SRC/" "$DEST/"
+      # Run rsync with itemize-changes (-i) to detect actual differences
+      local CHANGES
+      CHANGES=$(${pkgs.rsync}/bin/rsync -a -i --delete --no-specials --no-devices "$SRC/" "$DEST/" 2>&1 || true)
+      if [ -n "$CHANGES" ]; then
+        echo "  [SAVED DIR]  /persist/$TARGET -> /persist-raw/$TARGET"
+        COPIED_ANY=true
+      else
+        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no copy needed)"
+      fi
     else
-      echo "  [SAVE FILE] /persist/$TARGET -> /persist-raw/$TARGET"
       mkdir -p "$(dirname "$DEST")"
-      ${pkgs.rsync}/bin/rsync -a --no-specials --no-devices "$SRC" "$DEST"
+      local CHANGES
+      CHANGES=$(${pkgs.rsync}/bin/rsync -a -i --no-specials --no-devices "$SRC" "$DEST" 2>&1 || true)
+      if [ -n "$CHANGES" ]; then
+        echo "  [SAVED FILE] /persist/$TARGET -> /persist-raw/$TARGET"
+        COPIED_ANY=true
+      else
+        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no copy needed)"
+      fi
     fi
   }
 
-  SAVED_ANY=false
+  TARGETS_CHECKED=0
 
   if [ $# -gt 0 ]; then
     # Mode 1: Explicit targets provided — save ONLY the requested files/directories
     for arg in "$@"; do
       while IFS= read -r expanded; do
         [ -n "$expanded" ] || continue
+        TARGETS_CHECKED=$((TARGETS_CHECKED + 1))
         save_single_path "$expanded"
-        SAVED_ANY=true
       done < <(expand_target "$arg")
     done
   else
@@ -129,8 +145,8 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     echo "==> Running targeted scan of expected persistent state..."
     for w in "''${WHITELIST[@]}"; do
       if [ -e "$UPPER_DIR/$w" ] || [ -c "$UPPER_DIR/$w" ]; then
+        TARGETS_CHECKED=$((TARGETS_CHECKED + 1))
         save_single_path "$w"
-        SAVED_ANY=true
       fi
     done
 
@@ -152,19 +168,24 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     done < <(find "$UPPER_DIR" -mindepth 1 -maxdepth 2 2>/dev/null || true)
 
     if [ "''${#UNREGISTERED[@]}" -gt 0 ]; then
-      echo
-      echo "==> Unregistered modifications detected in /persist overlay (ignored):"
+      echo ""
+      echo "==> Volatile writes detected in RAM overlay (intentionally not saved to SD card):"
       for u in "''${UNREGISTERED[@]}"; do
-        echo "  [IGNORED] /persist/$u (temporary in RAM, NOT saved to SD card)"
+        echo "  [EPHEMERAL] /persist/$u"
       done
-      echo "  (To explicitly save an unlisted path, run: sudo rpi-persist-save <path>)"
+      echo "  (To explicitly commit an unlisted path, run: sudo rpi-persist-save <path>)"
     fi
   fi
 
-  if [ "$SAVED_ANY" = true ]; then
+  echo ""
+  if [ "$COPIED_ANY" = true ]; then
     sync
     echo "==> Targeted changes successfully committed to physical SD card (/persist-raw)."
   else
-    echo "==> No pending changes to expected persistent targets."
+    if [ "$TARGETS_CHECKED" -eq 0 ]; then
+      echo "==> No changes found in overlay. SD card is already completely up to date (0 bytes written)."
+    else
+      echo "==> Overlay contents are identical to SD card. Nothing was copied to physical storage (0 bytes written)."
+    fi
   fi
 ''
