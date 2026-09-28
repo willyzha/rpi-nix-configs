@@ -56,7 +56,7 @@
     "net.ipv4.conf.default.rp_filter" = 0;
     "net.ipv4.conf.eth0.rp_filter" = 0;
 
-    # Allow services (AdGuard, Docker, Glances) to bind/listen seamlessly during failover
+    # Allow services (AdGuard, Docker, reverse proxy) to bind/listen seamlessly during failover
     "net.ipv4.ip_nonlocal_bind" = 1;
 
     # Ensure ARP queries for the VIP answer strictly with the Virtual MAC address
