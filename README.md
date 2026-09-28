@@ -162,6 +162,21 @@ Simply pass the IP address of the target Pi. The script queries the node over SS
 | `./docker-rebuild.sh pi-primary image` | Generates the bootable SD card image (`.img.zst`) in `./output/` for fresh SD card flashing. |
 | `docker compose run --rm shell` | Drops into an interactive bash shell in the Nix container for debugging. |
 
+#### 🚀 Zero-Repo Deployment (Update without Git Checkout)
+
+You do **not** even need to clone or check out this repository on your computer to deploy updates! When run without a mounted workspace, the container automatically pulls the latest configuration directly from `github:willyzha/rpi-nix-configs`:
+
+```bash
+docker run --rm --net=host \
+  -v ~/.ssh:/root/.ssh:ro \
+  -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
+  -v rpi-nix-store:/nix \
+  -v rpi-nix-cache:/root/.cache \
+  ghcr.io/willyzha/rpi-nix-builder:latest 192.168.1.12
+```
+
+*(Or use the locally cached image tag `rpi-nix-builder:latest`)*
+
 #### How the Docker Rebuild Workflow Operates
 
 1. **Automatic ARM64 Emulation**: Uses `tonistiigi/binfmt` to register `qemu-aarch64` in the kernel so any `aarch64` derivation can run seamlessly on your `x86_64` host.
