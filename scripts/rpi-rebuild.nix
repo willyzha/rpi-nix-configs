@@ -4,6 +4,12 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
+  # Require root privileges
+  if [ "''${EUID:-$(id -u)}" -ne 0 ]; then
+    echo "Error: Please run as root (e.g. sudo rpi-rebuild)" >&2
+    exit 1
+  fi
+
   # Automatically detect which Pi node we are running on (pi-primary or pi-secondary)
   CURRENT_HOST="$(hostname)"
   DEFAULT_FLAKE="github:willyzha/rpi-nix-configs#$CURRENT_HOST"
@@ -48,12 +54,87 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   echo "==> Target host: $CURRENT_HOST"
   echo "==> Flake target: $FLAKE_TARGET ($ACTION)"
 
+  # State variables for cleanup trap
+  STOPPED_SERVICES=()
+  SWAP_ACTIVE=false
+  ROOT_REMOUNTED_RW=false
+  BOOT_REMOUNTED_RW=false
+  SUCCESS=false
+
+  # Detect raw ext4 persistent filesystem (swapfiles cannot reside on an OverlayFS)
+  SWAP_DIR="/persist-raw"
+  if [ ! -d "$SWAP_DIR" ] || ! mountpoint -q "$SWAP_DIR"; then
+    SWAP_DIR="/persist"
+  fi
+  SWAP_FILE="$SWAP_DIR/.rebuild-swapfile"
+
+  remove_swap() {
+    if [ "$SWAP_ACTIVE" = "true" ] || [ -f "$SWAP_FILE" ]; then
+      echo "==> Deactivating and removing temporary swap file..."
+      swapoff "$SWAP_FILE" 2>/dev/null || true
+      rm -f "$SWAP_FILE" 2>/dev/null || true
+      SWAP_ACTIVE=false
+    fi
+  }
+
+  cleanup() {
+    local EXIT_CODE=$?
+    remove_swap
+
+    if [ "$SUCCESS" != "true" ]; then
+      echo ""
+      echo "==> [ABORTED] Rebuild failed or was cancelled! Rolling system back to safe state..."
+      
+      # Restore any stopped services
+      if [ ''${#STOPPED_SERVICES[@]} -gt 0 ]; then
+        echo "    Restoring stopped services..."
+        for svc in "''${STOPPED_SERVICES[@]}"; do
+          echo "    Starting $svc..."
+          systemctl start "$svc" 2>/dev/null || true
+        done
+      fi
+
+      # Restore read-only partitions
+      echo "    Restoring partitions to Read-Only..."
+      if [ "$BOOT_REMOUNTED_RW" = "true" ] && mountpoint -q /boot/firmware; then
+        mount -o remount,ro /boot/firmware 2>/dev/null || true
+      fi
+      if [ "$ROOT_REMOUNTED_RW" = "true" ]; then
+        mount -o remount,ro / 2>/dev/null || true
+      fi
+
+      echo "==> Rollback complete. System is safe."
+    fi
+    exit $EXIT_CODE
+  }
+  trap cleanup EXIT INT TERM
+
+  # Pre-requisite 1: Network Check (if target is remote from github)
+  if [[ "$FLAKE_TARGET" =~ ^github: ]]; then
+    echo "==> Checking network connectivity before stopping services..."
+    if ! ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1 && ! ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
+      echo "Error: Network is unreachable! Cannot fetch $FLAKE_TARGET." >&2
+      echo "Aborting rebuild before stopping any services." >&2
+      exit 1
+    fi
+  fi
+
+  # Pre-requisite 2: Save any pending overlay changes to SD card before rebuild
   echo "==> Saving any pending /persist overlay changes to SD card before rebuild..."
   if command -v rpi-persist-save >/dev/null 2>&1; then
     rpi-persist-save || true
   fi
 
-  # 1. Stop heavy services first to maximize physical RAM (~700MB+ free)
+  # Pre-requisite 3: Disk space check on $SWAP_DIR (need at least 2.5GB free for swapfile)
+  echo "==> Verifying disk space on $SWAP_DIR for temporary swap..."
+  FREE_KB=$(df -k "$SWAP_DIR" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
+  if [ "$FREE_KB" -lt 2500000 ]; then
+    echo "Error: Insufficient free space on $SWAP_DIR ($((FREE_KB / 1024))MB free; need at least 2500MB)." >&2
+    echo "Aborting to prevent disk-full errors." >&2
+    exit 1
+  fi
+
+  # Pre-requisite 4: Stop heavy services to free maximum physical RAM (~700MB+ free)
   CANDIDATE_SERVICES=(
     "docker-swag.service"
     "docker-upswake.service"
@@ -72,7 +153,6 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     CANDIDATE_SERVICES+=("tailscaled.service")
   fi
 
-  STOPPED_SERVICES=()
   echo "==> Stopping non-essential services to maximize physical RAM..."
   if command -v docker >/dev/null 2>&1 && systemctl is-active --quiet docker 2>/dev/null; then
     RUNNING_CONTAINERS=$(docker ps -q 2>/dev/null || true)
@@ -95,63 +175,58 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
   free -h
 
-  # 2. Detect raw ext4 persistent filesystem and allocate temporary 2GB swap
-  SWAP_DIR="/persist-raw"
-  if [ ! -d "$SWAP_DIR" ] || ! mountpoint -q "$SWAP_DIR"; then
-    SWAP_DIR="/persist"
-  fi
-  SWAP_FILE="$SWAP_DIR/.rebuild-swapfile"
-
-  remove_swap() {
-    if [ -f "$SWAP_FILE" ]; then
-      echo "==> Deactivating and removing temporary swap file..."
-      swapoff "$SWAP_FILE" 2>/dev/null || true
-      rm -f "$SWAP_FILE" 2>/dev/null || true
-    fi
-  }
-
+  # Pre-requisite 5: Allocate and activate temporary 2GB swap (MANDATORY for 1GB Pi 3B)
   echo "==> Allocating temporary 2GB swap file on $SWAP_DIR to guarantee OOM safety..."
   remove_swap
-  if fallocate -l 2G "$SWAP_FILE" 2>/dev/null || dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none; then
-    chmod 600 "$SWAP_FILE"
-    mkswap "$SWAP_FILE" >/dev/null 2>&1
-    swapon "$SWAP_FILE" 2>/dev/null || true
-    echo "    Temporary swap active (secondary to zram):"
-    swapon --show 2>/dev/null || true
-  else
-    echo "    Warning: Could not create temporary swapfile; continuing with RAM+zram."
+  if ! fallocate -l 2G "$SWAP_FILE" 2>/dev/null && ! dd if=/dev/zero of="$SWAP_FILE" bs=1M count=2048 status=none; then
+    echo "Error: Failed to create 2GB swapfile at $SWAP_FILE!" >&2
+    echo "Aborting rebuild to prevent out-of-memory kernel freeze." >&2
+    exit 1
   fi
 
-  # 3. Remount filesystems as Read-Write now that RAM and swap headroom are secured
+  chmod 600 "$SWAP_FILE"
+  if ! mkswap "$SWAP_FILE" >/dev/null 2>&1; then
+    echo "Error: mkswap failed on $SWAP_FILE!" >&2
+    exit 1
+  fi
+
+  if ! swapon "$SWAP_FILE" 2>/dev/null; then
+    echo "Error: swapon failed for $SWAP_FILE!" >&2
+    exit 1
+  fi
+  SWAP_ACTIVE=true
+  echo "    Temporary swap active (secondary to zram):"
+  swapon --show 2>/dev/null || true
+
+  # Pre-requisite 6: Remount root as Read-Write and verify writability
   echo "==> Remounting / and /boot/firmware as Read-Write..."
-  mount -o remount,rw /
+  if ! mount -o remount,rw /; then
+    echo "Error: Failed to remount / as Read-Write! Check 'dmesg' for filesystem errors." >&2
+    exit 1
+  fi
+  ROOT_REMOUNTED_RW=true
+
+  # Test that / is actually writable (catches errors=remount-ro locks)
+  if ! touch /nix/.rw-test 2>/dev/null; then
+    echo "Error: Root filesystem is not writable after remount! Check 'dmesg' for ext4 errors." >&2
+    exit 1
+  fi
+  rm -f /nix/.rw-test 2>/dev/null || true
+
   if mountpoint -q /boot/firmware; then
-    mount -o remount,rw /boot/firmware || true
+    if mount -o remount,rw /boot/firmware 2>/dev/null; then
+      BOOT_REMOUNTED_RW=true
+    else
+      echo "    Notice: /boot/firmware could not be remounted rw (dirty bit or noauto); continuing."
+    fi
   fi
 
   # Ensure nix-daemon socket is active
   if ! systemctl is-active --quiet nix-daemon.socket; then
-    systemctl restart nix-daemon.socket || true
+    systemctl start nix-daemon.socket 2>/dev/null || true
   fi
 
-  SUCCESS=false
-  cleanup() {
-    remove_swap
-    if [ "$SUCCESS" != "true" ]; then
-      echo "==> Rebuild failed or was cancelled! Restoring stopped services..."
-      for svc in "''${STOPPED_SERVICES[@]}"; do
-        echo "    Starting $svc..."
-        systemctl start "$svc" 2>/dev/null || true
-      done
-      echo "==> Restoring partitions to Read-Only..."
-      if mountpoint -q /boot/firmware; then
-        mount -o remount,ro /boot/firmware || true
-      fi
-      mount -o remount,ro / || true
-    fi
-  }
-  trap cleanup EXIT INT TERM
-
+  echo "==> All pre-requisite checks passed! Starting NixOS build..."
   echo "==> Applying NixOS configuration ($ACTION) for $FLAKE_TARGET..."
   nixos-rebuild "$ACTION" --max-jobs 1 --cores 1 --refresh --flake "$FLAKE_TARGET" "$@"
 
@@ -166,7 +241,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     fi
     echo "==> Syncing disks and restoring Read-Only before reboot..."
     sync
-    if mountpoint -q /boot/firmware; then
+    if [ "$BOOT_REMOUNTED_RW" = "true" ] && mountpoint -q /boot/firmware; then
       mount -o remount,ro /boot/firmware 2>/dev/null || true
     fi
     mount -o remount,ro / 2>/dev/null || true
@@ -181,9 +256,9 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
       systemctl start "$svc" 2>/dev/null || true
     done
     echo "==> Restoring partitions to Read-Only..."
-    if mountpoint -q /boot/firmware; then
-      mount -o remount,ro /boot/firmware || true
+    if [ "$BOOT_REMOUNTED_RW" = "true" ] && mountpoint -q /boot/firmware; then
+      mount -o remount,ro /boot/firmware 2>/dev/null || true
     fi
-    mount -o remount,ro / || true
+    mount -o remount,ro / 2>/dev/null || true
   fi
 ''
