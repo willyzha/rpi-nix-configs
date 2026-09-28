@@ -242,6 +242,7 @@ Both nodes run a lightweight native telemetry service (**`rpi-mqtt-monitor`**) t
 | **Last Boot** | `sensor.<node>_last_boot` | `timestamp` | UTC boot timestamp formatted to relative uptime |
 | **VRRP Status** | `sensor.<node>_vrrp_status` | Text (`MASTER` / `BACKUP`) | Keepalived failover state with `virtual_ip` attribute |
 | **Services Health** | `sensor.<node>_services_health` | Text (`HEALTHY (X/X active)`) | Cluster daemon health aggregation via `rpi-services-status` |
+| **Update Available** | `binary_sensor.<node>_update_available` / `update.<node>_update` | `update` | Tracks GitHub repo updates via `rpi-check-update` (cached 12h) |
 
 ### Availability & Offline Detection
 

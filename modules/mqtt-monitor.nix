@@ -182,6 +182,44 @@ EOF
 EOF
 )"
 
+      # Home Assistant Update Entity
+      publish_discovery "update" "update" "$(cat <<EOF
+{
+  "name": "Update",
+  "unique_id": "${nodeId}_update",
+  "state_topic": "${stateTopic}",
+  "value_template": "{{ value_json.installed_version }}",
+  "latest_version_topic": "${stateTopic}",
+  "latest_version_template": "{{ value_json.latest_version }}",
+  "title": "NixOS Flake Update",
+  "release_url": "https://github.com/willyzha/rpi-nix-configs/commits/main",
+  "entity_picture": "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/logo/nix-snowflake.svg",
+  "availability_topic": "${availTopic}",
+  "expire_after": 180,
+  "device": $DEVICE_JSON
+}
+EOF
+)"
+
+      # Update Available Binary Sensor
+      publish_discovery "binary_sensor" "update_available" "$(cat <<EOF
+{
+  "name": "Update Available",
+  "unique_id": "${nodeId}_update_available",
+  "state_topic": "${stateTopic}",
+  "value_template": "{{ 'ON' if value_json.update_available else 'OFF' }}",
+  "payload_on": "ON",
+  "payload_off": "OFF",
+  "device_class": "update",
+  "availability_topic": "${availTopic}",
+  "expire_after": 180,
+  "json_attributes_topic": "${stateTopic}",
+  "json_attributes_template": "{{ {'installed_version': value_json.installed_version, 'latest_version': value_json.latest_version, 'last_checked': value_json.update_last_checked} | tojson }}",
+  "device": $DEVICE_JSON
+}
+EOF
+)"
+
       # Set availability to online
       $PUB -r -t "${availTopic}" -m "online" 2>/dev/null || true
     }
@@ -220,6 +258,60 @@ EOF
 
     get_cpu_ticks() {
       awk '/^cpu / {print $5+$6, $2+$3+$4+$5+$6+$7+$8+$9}' /proc/stat
+    }
+
+    UPDATE_CACHE="/run/rpi-check-update.cache"
+    UPDATE_INTERVAL=43200 # 12 hours in seconds
+
+    get_update_status() {
+      local now
+      now=$(date +%s)
+      local cache_time=0
+      local need_check=0
+
+      if [ -f "$UPDATE_CACHE" ]; then
+        cache_time=$(head -n 1 "$UPDATE_CACHE" 2>/dev/null || echo 0)
+        if ! [[ "$cache_time" =~ ^[0-9]+$ ]]; then
+          cache_time=0
+        fi
+      fi
+
+      if [ "$cache_time" -eq 0 ] || [ $(( now - cache_time )) -ge "$UPDATE_INTERVAL" ]; then
+        need_check=1
+      fi
+
+      if [ "$need_check" -eq 1 ]; then
+        if command -v rpi-check-update >/dev/null 2>&1; then
+          rpi-check-update --json >/dev/null 2>&1 || true
+        fi
+      fi
+
+      if [ -f "$UPDATE_CACHE" ]; then
+        local cached_json
+        cached_json=$(tail -n +2 "$UPDATE_CACHE" 2>/dev/null || true)
+        if [ -n "$cached_json" ]; then
+          echo "$cached_json"
+          return 0
+        fi
+      fi
+
+      local cur_rev="unknown"
+      if [ -f /run/current-system/configuration-revision ]; then
+        cur_rev=$(cat /run/current-system/configuration-revision | tr -d '\r\n[:space:]')
+      fi
+      local cur_short="''${cur_rev:0:12}"
+      [ -z "$cur_short" ] && cur_short="unknown"
+
+      ${pkgs.jq}/bin/jq -n \
+        --arg inst "$cur_short" \
+        '{
+          update_available: false,
+          installed_version: $inst,
+          latest_version: $inst,
+          installed_revision: $inst,
+          latest_revision: $inst,
+          last_checked: "never"
+        }'
     }
 
     # Initial sample
@@ -287,6 +379,13 @@ EOF
         SERVICES_HEALTH="Unknown"
       fi
 
+      # Update status from local cache (/run/rpi-check-update.cache, refreshed max once every 12h)
+      UPDATE_INFO=$(get_update_status)
+      UPDATE_AVAIL=$(echo "$UPDATE_INFO" | ${pkgs.jq}/bin/jq -r '.update_available // false')
+      INSTALLED_VER=$(echo "$UPDATE_INFO" | ${pkgs.jq}/bin/jq -r '.installed_version // "unknown"')
+      LATEST_VER=$(echo "$UPDATE_INFO" | ${pkgs.jq}/bin/jq -r '.latest_version // "unknown"')
+      UPDATE_CHECKED=$(echo "$UPDATE_INFO" | ${pkgs.jq}/bin/jq -r '.last_checked // "unknown"')
+
       # Build JSON payload using jq
       PAYLOAD=$( ${pkgs.jq}/bin/jq -n \
         --arg cpu "$CPU_USAGE" \
@@ -298,6 +397,10 @@ EOF
         --arg boot "$LAST_BOOT" \
         --arg vrrp "$VRRP_STATUS" \
         --arg svc "$SERVICES_HEALTH" \
+        --argjson update "$UPDATE_AVAIL" \
+        --arg inst "$INSTALLED_VER" \
+        --arg late "$LATEST_VER" \
+        --arg checked "$UPDATE_CHECKED" \
         '{
           cpu_usage: ($cpu | tonumber),
           memory_usage: ($mem | tonumber),
@@ -308,7 +411,11 @@ EOF
           last_boot: $boot,
           vrrp_status: $vrrp,
           vrrp_vip: "192.168.1.9",
-          services_health: $svc
+          services_health: $svc,
+          update_available: $update,
+          installed_version: $inst,
+          latest_version: $late,
+          update_last_checked: $checked
         }'
       )
 
