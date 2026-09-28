@@ -40,6 +40,10 @@
 
   # Kernel sysctl tuning for Keepalived VMAC (Virtual MAC) and seamless failover
   boot.kernel.sysctl = {
+    # IP forwarding and routing marks for containers, WireGuard, and Tailscale
+    "net.ipv4.ip_forward" = 1;
+    "net.ipv4.conf.all.src_valid_mark" = 1;
+
     # Disable strict reverse path filtering so packets routed to VMAC (vrrp.51) aren't dropped
     "net.ipv4.conf.all.rp_filter" = 0;
     "net.ipv4.conf.default.rp_filter" = 0;
