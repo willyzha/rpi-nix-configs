@@ -245,7 +245,7 @@ Both nodes run a lightweight native telemetry service (**`rpi-mqtt-monitor`**) t
 
 ### Availability & Offline Detection
 
-The monitor publishes availability to `rpi/<node>/availability` (`online` / `offline`). In addition, each sensor is configured with `expire_after: 90`, ensuring that if a node suffers sudden power loss or network disruption, Home Assistant immediately transitions its sensors to `Unavailable` within 90 seconds.
+The monitor publishes availability to `rpi/<node>/availability` (`online` / `offline`). In addition, each sensor is configured with `expire_after: 180`, ensuring that if a node suffers sudden power loss or network disruption, Home Assistant immediately transitions its sensors to `Unavailable` within 3 minutes while tolerating transient broker restarts without flapping.
 
 ### MQTT Broker Configuration (`/persist/secrets/mqtt.env`)
 

@@ -62,8 +62,11 @@ let
 EOF
 )
 
-    # CPU Usage Sensor
-    publish_discovery "sensor" "cpu_usage" "$(cat <<EOF
+    publish_all_discovery() {
+      echo "==> Publishing Home Assistant MQTT Discovery configurations for ${displayName}..."
+
+      # CPU Usage Sensor
+      publish_discovery "sensor" "cpu_usage" "$(cat <<EOF
 {
   "name": "CPU Usage",
   "unique_id": "${nodeId}_cpu_usage",
@@ -73,14 +76,14 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:cpu-64-bit",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # Memory Usage Sensor
-    publish_discovery "sensor" "memory_usage" "$(cat <<EOF
+      # Memory Usage Sensor
+      publish_discovery "sensor" "memory_usage" "$(cat <<EOF
 {
   "name": "Memory Usage",
   "unique_id": "${nodeId}_memory_usage",
@@ -90,14 +93,14 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # Memory Used Sensor (in MB)
-    publish_discovery "sensor" "memory_used" "$(cat <<EOF
+      # Memory Used Sensor (in MB)
+      publish_discovery "sensor" "memory_used" "$(cat <<EOF
 {
   "name": "Memory Used",
   "unique_id": "${nodeId}_memory_used",
@@ -108,14 +111,14 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # CPU Temperature Sensor
-    publish_discovery "sensor" "cpu_temperature" "$(cat <<EOF
+      # CPU Temperature Sensor
+      publish_discovery "sensor" "cpu_temperature" "$(cat <<EOF
 {
   "name": "CPU Temperature",
   "unique_id": "${nodeId}_cpu_temperature",
@@ -125,14 +128,14 @@ EOF
   "device_class": "temperature",
   "state_class": "measurement",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # Last Boot Timestamp Sensor
-    publish_discovery "sensor" "last_boot" "$(cat <<EOF
+      # Last Boot Timestamp Sensor
+      publish_discovery "sensor" "last_boot" "$(cat <<EOF
 {
   "name": "Last Boot",
   "unique_id": "${nodeId}_last_boot",
@@ -141,14 +144,14 @@ EOF
   "device_class": "timestamp",
   "icon": "mdi:clock-outline",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # VRRP Role Status Sensor
-    publish_discovery "sensor" "vrrp_status" "$(cat <<EOF
+      # VRRP Role Status Sensor
+      publish_discovery "sensor" "vrrp_status" "$(cat <<EOF
 {
   "name": "VRRP Status",
   "unique_id": "${nodeId}_vrrp_status",
@@ -156,7 +159,7 @@ EOF
   "value_template": "{{ value_json.vrrp_status }}",
   "icon": "mdi:server-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "json_attributes_topic": "${stateTopic}",
   "json_attributes_template": "{{ {'virtual_ip': value_json.vrrp_vip} | tojson }}",
   "device": $DEVICE_JSON
@@ -164,8 +167,8 @@ EOF
 EOF
 )"
 
-    # Services Health Sensor
-    publish_discovery "sensor" "services_health" "$(cat <<EOF
+      # Services Health Sensor
+      publish_discovery "sensor" "services_health" "$(cat <<EOF
 {
   "name": "Services Health",
   "unique_id": "${nodeId}_services_health",
@@ -173,18 +176,43 @@ EOF
   "value_template": "{{ value_json.services_health }}",
   "icon": "mdi:check-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 90,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
-    # Set availability to online
-    $PUB -r -t "${availTopic}" -m "online"
+      # Set availability to online
+      $PUB -r -t "${availTopic}" -m "online" 2>/dev/null || true
+    }
+
+    # Initial publication
+    publish_all_discovery
+
+    # Background listener for Home Assistant birth message (homeassistant/status == online)
+    HA_TRIGGER="/run/rpi-mqtt-discovery-trigger"
+    rm -f "$HA_TRIGGER"
+
+    listen_ha_birth() {
+      while true; do
+        ${pkgs.mosquitto}/bin/mosquitto_sub -h "$MQTT_HOST" -p "$PORT" ''${AUTH_ARGS[@]+''${AUTH_ARGS[@]}} -t "homeassistant/status" -q 0 2>/dev/null | while read -r status; do
+          if [ "$status" = "online" ]; then
+            touch "$HA_TRIGGER"
+          fi
+        done || true
+        sleep 10
+      done
+    }
+
+    listen_ha_birth &
+    SUB_PID=$!
 
     # Trap to publish offline on service stop
     cleanup() {
+      kill -TERM "$SUB_PID" 2>/dev/null || true
+      pkill -P "$SUB_PID" 2>/dev/null || true
       $PUB -r -t "${availTopic}" -m "offline" 2>/dev/null || true
+      rm -f "$HA_TRIGGER"
     }
     trap cleanup EXIT INT TERM
 
@@ -197,7 +225,17 @@ EOF
     # Initial sample
     read -r prev_idle prev_total <<< "$(get_cpu_ticks)"
 
+    LOOP_COUNT=0
+    BROKER_FAILED=0
+
     while true; do
+      # Check if Home Assistant sent a birth message
+      if [ -f "$HA_TRIGGER" ]; then
+        rm -f "$HA_TRIGGER"
+        echo "==> Home Assistant birth detected (homeassistant/status online). Re-publishing discovery..."
+        publish_all_discovery
+      fi
+
       sleep 1
       read -r curr_idle curr_total <<< "$(get_cpu_ticks)"
       idle_diff=$(( curr_idle - prev_idle ))
@@ -274,11 +312,25 @@ EOF
         }'
       )
 
-      # Publish telemetry state
-      $PUB -t "${stateTopic}" -m "$PAYLOAD" || echo "Warning: Failed to publish MQTT telemetry" >&2
+      # Publish telemetry state (retained)
+      if $PUB -r -t "${stateTopic}" -m "$PAYLOAD"; then
+        if [ "$BROKER_FAILED" -eq 1 ]; then
+          echo "==> MQTT broker reconnected. Re-publishing discovery configurations..."
+          publish_all_discovery
+          BROKER_FAILED=0
+        fi
+        # Keep availability online
+        $PUB -r -t "${availTopic}" -m "online" 2>/dev/null || true
+      else
+        echo "Warning: Failed to publish MQTT telemetry (broker unreachable)" >&2
+        BROKER_FAILED=1
+      fi
 
-      # Keep availability online
-      $PUB -r -t "${availTopic}" -m "online" 2>/dev/null || true
+      LOOP_COUNT=$(( LOOP_COUNT + 1 ))
+      # Safety: Re-publish discovery configs every 10 minutes (20 loops * 30s)
+      if [ $(( LOOP_COUNT % 20 )) -eq 0 ]; then
+        publish_all_discovery
+      fi
 
       sleep 29
     done
