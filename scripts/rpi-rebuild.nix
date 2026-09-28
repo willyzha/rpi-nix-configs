@@ -53,16 +53,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     rpi-persist-save || true
   fi
 
-  echo "==> Remounting / and /boot/firmware as Read-Write..."
-  mount -o remount,rw /
-  if mountpoint -q /boot/firmware; then
-    mount -o remount,rw /boot/firmware || true
-  fi
-
-  # Ensure nix-daemon is alive and listening
-  systemctl restart nix-daemon.socket nix-daemon.service || true
-
-  # Candidate services to stop to reclaim maximum physical RAM (~700MB+ free)
+  # 1. Stop heavy services first to maximize physical RAM (~700MB+ free)
   CANDIDATE_SERVICES=(
     "docker-swag.service"
     "docker-upswake.service"
@@ -104,7 +95,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
   free -h
 
-  # Detect raw ext4 persistent filesystem (swapfiles cannot reside on an OverlayFS)
+  # 2. Detect raw ext4 persistent filesystem and allocate temporary 2GB swap
   SWAP_DIR="/persist-raw"
   if [ ! -d "$SWAP_DIR" ] || ! mountpoint -q "$SWAP_DIR"; then
     SWAP_DIR="/persist"
@@ -129,6 +120,18 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     swapon --show 2>/dev/null || true
   else
     echo "    Warning: Could not create temporary swapfile; continuing with RAM+zram."
+  fi
+
+  # 3. Remount filesystems as Read-Write now that RAM and swap headroom are secured
+  echo "==> Remounting / and /boot/firmware as Read-Write..."
+  mount -o remount,rw /
+  if mountpoint -q /boot/firmware; then
+    mount -o remount,rw /boot/firmware || true
+  fi
+
+  # Ensure nix-daemon socket is active
+  if ! systemctl is-active --quiet nix-daemon.socket; then
+    systemctl restart nix-daemon.socket || true
   fi
 
   SUCCESS=false
