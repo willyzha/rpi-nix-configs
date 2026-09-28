@@ -157,6 +157,8 @@ EOF
   "icon": "mdi:server-network",
   "availability_topic": "${availTopic}",
   "expire_after": 90,
+  "json_attributes_topic": "${stateTopic}",
+  "json_attributes_template": "{{ {'virtual_ip': value_json.vrrp_vip} | tojson }}",
   "device": $DEVICE_JSON
 }
 EOF
@@ -267,6 +269,7 @@ EOF
           uptime_seconds: ($uptime | tonumber),
           last_boot: $boot,
           vrrp_status: $vrrp,
+          vrrp_vip: "192.168.1.9",
           services_health: $svc
         }'
       )
