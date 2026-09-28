@@ -1,0 +1,62 @@
+services:
+  # 1. Automatic QEMU binfmt registration for ARM64/ARM execution on x86_64 host
+  binfmt:
+    image: tonistiigi/binfmt:latest
+    container_name: rpi-binfmt-setup
+    privileged: true
+    command: ["--install", "arm64,arm"]
+    restart: "no"
+
+  # 2. Primary builder and deployer service
+  rebuild:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: rpi-nix-builder:latest
+    container_name: rpi-nix-builder
+    depends_on:
+      binfmt:
+        condition: service_completed_successfully
+    network_mode: host
+    volumes:
+      - .:/workspace
+      - rpi-nix-store:/nix
+      - rpi-nix-cache:/root/.cache
+      - ${HOME}/.ssh:/root/.ssh:ro
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro
+      - ./output:/workspace/output
+    environment:
+      - TARGET_HOST=${TARGET_HOST:-}
+      - TARGET_IP=${TARGET_IP:-}
+      - ACTION=${ACTION:-boot}
+      - TARGET_USER=${TARGET_USER:-root}
+      - SSH_KEY=${SSH_KEY:-}
+      - REBOOT=${REBOOT:-true}
+    stdin_open: true
+    tty: true
+
+  # 3. Interactive debugging shell with full Nix environment
+  shell:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: rpi-nix-builder:latest
+    container_name: rpi-nix-shell
+    depends_on:
+      binfmt:
+        condition: service_completed_successfully
+    network_mode: host
+    entrypoint: ["/usr/bin/env", "bash"]
+    volumes:
+      - .:/workspace
+      - rpi-nix-store:/nix
+      - rpi-nix-cache:/root/.cache
+      - ${HOME}/.ssh:/root/.ssh:ro
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro
+      - ./output:/workspace/output
+    stdin_open: true
+    tty: true
+
+volumes:
+  rpi-nix-store:
+  rpi-nix-cache:

@@ -6,10 +6,12 @@
 *.crt
 secrets/
 .env*
+!.env.example
 
-# Nix build artifacts
+# Build outputs
 result
 result-*
+/output/
 
 # Editor files
 .vscode/

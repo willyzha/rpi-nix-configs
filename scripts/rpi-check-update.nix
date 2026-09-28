@@ -19,25 +19,37 @@ pkgs.writeShellScriptBin "rpi-check-update" ''
   # Read running system's baked-in configuration revision
   CURRENT_REV=""
   if [ -f /run/current-system/configuration-revision ]; then
-    CURRENT_REV=$(cat /run/current-system/configuration-revision)
+    CURRENT_REV=$(cat /run/current-system/configuration-revision | tr -d '\r\n[:space:]')
+  elif command -v nixos-version >/dev/null 2>&1; then
+    CURRENT_REV=$(nixos-version --configuration-revision 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
   fi
+
+  CLEAN_CURRENT="''${CURRENT_REV%-dirty}"
 
   echo ""
   if [ -n "$CURRENT_REV" ]; then
-    echo "Running System: ''${CURRENT_REV:0:12} ($CURRENT_REV)"
+    if [[ "$CURRENT_REV" == *"-dirty" ]]; then
+      echo "Running System: ''${CURRENT_REV:0:12} ($CURRENT_REV) [local modifications]"
+    else
+      echo "Running System: ''${CURRENT_REV:0:12} ($CURRENT_REV)"
+    fi
   else
     echo "Running System: (generation built before commit tracking was enabled)"
   fi
   echo "Latest GitHub:  ''${LATEST_REV:0:12} ($LATEST_REV)"
   echo ""
 
-  if [ -n "$CURRENT_REV" ] && [ "$CURRENT_REV" = "$LATEST_REV" ]; then
-    echo "✅ System is up to date with the latest GitHub commit!"
+  if [ -n "$CLEAN_CURRENT" ] && [ "$CLEAN_CURRENT" = "$LATEST_REV" ]; then
+    if [[ "$CURRENT_REV" == *"-dirty" ]]; then
+      echo "✅ System is based on the latest GitHub commit (with local uncommitted modifications)!"
+    else
+      echo "✅ System is up to date with the latest GitHub commit!"
+    fi
     exit 0
   else
     echo "⚠️ Update available on GitHub!"
-    echo "   To apply this update, run:"
-    echo "   sudo rpi-rebuild"
+    echo "   To apply this update from your host, run:"
+    echo "   ./docker-rebuild.sh $(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
     exit 1
   fi
 ''
