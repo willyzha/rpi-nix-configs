@@ -65,6 +65,7 @@ This setup prevents wear while preserving convenience:
 4. **Automated First-Boot Persistence**: The `PERSIST` partition is automatically created, formatted, and initialized on first boot, filling the remaining capacity of the SD card.
 5. **`rpi-rebuild` command**: Built-in helper that automatically saves pending overlay changes, remounts `/` and `/boot/firmware` as `rw`, executes `nixos-rebuild`, and restores them to `ro` upon completion.
 6. **`rpi-persist-save` command**: Built-in helper to commit modified files/directories from the `/persist` overlay down to physical SD card storage (`/persist-raw`).
+7. **`rpi-check-update` command**: Built-in helper to check if the running system is in sync with the latest GitHub commit (with optional `--diff` support).
 
 ---
 
@@ -126,6 +127,16 @@ The built-in `rpi-rebuild` helper script automatically handles the entire lifecy
 3. **Temporarily stops Docker** (freeing ~500 MB of RAM so the Nix evaluation fits entirely in physical RAM without swap thrashing or CPU freezing).
 4. Pulls the latest Git commit and rebuilds the NixOS generation.
 5. **Trapped cleanup**: Automatically restarts Docker and restores partitions back down to zero-wear read-only (`ro,noatime`), even if interrupted or on error.
+
+### Check If System Is Up to Date With GitHub
+
+To check if your node is running the latest configuration from GitHub without rebuilding:
+```bash
+rpi-check-update
+
+# To inspect exact /etc file differences if an update is available:
+rpi-check-update --diff
+```
 
 ---
 

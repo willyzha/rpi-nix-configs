@@ -11,5 +11,6 @@
     (import ./rpi-set-swag.nix { inherit pkgs; })
     (import ./rpi-persist-save.nix { inherit pkgs; })
     (import ./rpi-rebuild.nix { inherit pkgs; })
+    (import ./rpi-check-update.nix { inherit pkgs; })
   ];
 }
