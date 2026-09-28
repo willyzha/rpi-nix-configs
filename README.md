@@ -12,7 +12,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **Tailscale**: Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
   - **Keepalived**: VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - **NUT Server**: Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
-  - **Glances**: System and hardware resource monitoring daemon (Port `61208`) with native service health and Keepalived role tracking.
+  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
   - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
@@ -23,7 +23,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **WireGuard**: VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
   - **AdGuard Home**: Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - **Keepalived**: VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
-  - **Glances**: System and hardware resource monitoring daemon (Port `61208`) with native service health and Keepalived role tracking.
+  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
   - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:
   - **SWAG**: Failover reverse proxy (Port `443`).
@@ -67,7 +67,7 @@ This setup prevents wear while preserving convenience:
 6. **`rpi-persist-save` command**: Built-in helper to commit modified files/directories from the `/persist` overlay down to physical SD card storage (`/persist-raw`). Detects identical contents to prevent unnecessary flash writes.
 7. **`rpi-check-update` command**: Built-in helper that checks if the running system is in sync with the latest GitHub commit in ~0.3s via the Git wire protocol.
 8. **`rpi-vrrp-status` command**: Built-in helper that queries local network interfaces to report whether the node is `MASTER` or `BACKUP` for Keepalived.
-9. **`rpi-services-status` command**: Built-in helper that verifies the health of all cluster services (`keepalived`, `adguardhome`, `docker`, `docker-swag`, `glances`, `upsd`, `tailscaled`).
+9. **`rpi-services-status` command**: Built-in helper that verifies the health of all cluster services (`keepalived`, `adguardhome`, `docker`, `docker-swag`, `rpi-mqtt-monitor`, `upsd`, `tailscaled`).
 
 ---
 
@@ -87,6 +87,7 @@ rpi-nix-configs/
 ├── modules/
 │   ├── sd-protection.nix             # Read-only root, OverlayFS, tmpfs mounts, rpi-persist-save, rpi-rebuild
 │   ├── common.nix                    # Common base (user pi, ssh keys, zram, VMAC sysctl, timezone, tools)
+│   ├── mqtt-monitor.nix              # Native Home Assistant MQTT Auto-Discovery & telemetry reporter
 │   ├── hardware-rpi3.nix             # RPi 3B kernel and boot config
 │   ├── docker.nix                    # Docker daemon tuning & native ext4 data root
 │   └── sd-image.nix                  # SD card image packaging with zstd compression
@@ -105,9 +106,9 @@ rpi-nix-configs/
 │   └── rpi-init-secrets.nix          # Secret directory initializer
 └── hosts/
     ├── pi-primary/
-    │   └── default.nix               # AdGuard Home, Tailscale, NUT, Keepalived, Glances, SWAG
+    │   └── default.nix               # AdGuard Home, Tailscale, NUT, Keepalived, MQTT Monitor, SWAG
     └── pi-secondary/
-        └── default.nix               # WireGuard, AdGuard Home, Keepalived, Glances, SWAG
+        └── default.nix               # WireGuard, AdGuard Home, Keepalived, MQTT Monitor, SWAG
 ```
 
 ---
@@ -206,7 +207,7 @@ ssh pi@192.168.1.12 "sudo rpi-rebuild"
 The built-in `rpi-rebuild` helper script automatically handles the entire lifecycle:
 1. **Pre-flight validation**: Checks for network connectivity, disk space (>=2.5GB free), and root privileges.
 2. **Overlay save**: Commits any pending persistent changes from RAM to the physical SD card via `rpi-persist-save`.
-3. **RAM reclamation**: Temporarily halts heavy services (Docker containers, AdGuard, Glances, Keepalived, NUT) and drops filesystem caches to free ~700MB+ of real physical RAM.
+3. **RAM reclamation**: Temporarily halts heavy services (Docker containers, AdGuard, rpi-mqtt-monitor, Keepalived, NUT) and drops filesystem caches to free ~700MB+ of real physical RAM.
 4. **Temporary 2GB swap**: Dynamically allocates and enables a 2GB swap file on `/persist-raw` (secondary to zram) to guarantee OOM safety during heavy Nix evaluation. Aborts immediately if swap allocation fails to protect against kernel panics.
 5. **Read-write remount & validation**: Remounts `/` as `rw` and verifies filesystem writability (detecting ext4 journal locks).
 6. **Atomic generation build**: Rebuilds the system from GitHub using `--max-jobs 1 --cores 1`.
@@ -225,46 +226,44 @@ rpi-check-update
 
 ## Cluster Monitoring & Home Assistant Integration
 
-Both nodes run **Glances** on port `61208` with real-time port scanners and live status monitors:
-- **Port health checks**: DNS (`53`), HTTPS (`443`), AdGuard Web UI (`3000`), NUT UPS (`3493`), and Glances (`61208`).
-- **Keepalived role**: Live detection of `MASTER (Active on VIP 192.168.1.9)` vs `BACKUP (Standby)` via `rpi-vrrp-status`.
-- **Service health**: Real-time aggregation of cluster services via `rpi-services-status`.
+Both nodes run a lightweight native telemetry service (**`rpi-mqtt-monitor`**) that reports health and system performance metrics to your MQTT broker every 30 seconds using **Home Assistant MQTT Auto-Discovery**.
 
-### Add to Home Assistant (`configuration.yaml`)
+> [!TIP]
+> **Zero YAML Required in Home Assistant**: Both nodes automatically register themselves as clean devices (**`Pi Primary`** and **`Pi Secondary`**) with all sensors grouped neatly under each device card.
 
-You can expose these status sensors in Home Assistant via Glances' REST API:
+### Monitored Sensors
 
-```yaml
-sensor:
-  # Primary Pi Monitors
-  - platform: rest
-    name: "Pi Primary Keepalived Role"
-    resource: "http://192.168.1.11:61208/api/3/amps"
-    value_template: "{{ value_json.vrrp[0].result if 'vrrp' in value_json else 'Unknown' }}"
-    icon: "mdi:server-network"
-    scan_interval: 10
+| Sensor | Entity ID | Device Class / Unit | Description |
+| :--- | :--- | :--- | :--- |
+| **CPU Usage** | `sensor.<node>_cpu_usage` | `%` (measurement) | Accurate CPU load percentage calculated from `/proc/stat` |
+| **CPU Temperature** | `sensor.<node>_cpu_temperature` | `temperature` (`°C`) | Live SoC thermal reading from `/sys/class/thermal` |
+| **Memory Usage** | `sensor.<node>_memory_usage` | `%` (measurement) | RAM consumption percentage from `/proc/meminfo` |
+| **Memory Used** | `sensor.<node>_memory_used` | `data_size` (`MB`) | Physical RAM utilized in megabytes |
+| **Last Boot** | `sensor.<node>_last_boot` | `timestamp` | UTC boot timestamp formatted to relative uptime |
+| **VRRP Status** | `sensor.<node>_vrrp_status` | Text (`MASTER` / `BACKUP`) | Keepalived failover state with `virtual_ip` attribute |
+| **Services Health** | `sensor.<node>_services_health` | Text (`HEALTHY (X/X active)`) | Cluster daemon health aggregation via `rpi-services-status` |
 
-  - platform: rest
-    name: "Pi Primary Services Health"
-    resource: "http://192.168.1.11:61208/api/3/amps"
-    value_template: "{{ value_json.services[0].result if 'services' in value_json else 'Unknown' }}"
-    icon: "mdi:heart-pulse"
-    scan_interval: 15
+### Availability & Offline Detection
 
-  # Secondary Pi Monitors
-  - platform: rest
-    name: "Pi Secondary Keepalived Role"
-    resource: "http://192.168.1.12:61208/api/3/amps"
-    value_template: "{{ value_json.vrrp[0].result if 'vrrp' in value_json else 'Unknown' }}"
-    icon: "mdi:server-network"
-    scan_interval: 10
+The monitor publishes availability to `rpi/<node>/availability` (`online` / `offline`). In addition, each sensor is configured with `expire_after: 90`, ensuring that if a node suffers sudden power loss or network disruption, Home Assistant immediately transitions its sensors to `Unavailable` within 90 seconds.
 
-  - platform: rest
-    name: "Pi Secondary Services Health"
-    resource: "http://192.168.1.12:61208/api/3/amps"
-    value_template: "{{ value_json.services[0].result if 'services' in value_json else 'Unknown' }}"
-    icon: "mdi:heart-pulse"
-    scan_interval: 15
+### MQTT Broker Configuration (`/persist/secrets/mqtt.env`)
+
+Broker connection details are kept strictly out of Git and stored in persistent storage on each Pi (`/persist/secrets/mqtt.env`):
+
+```bash
+MQTT_HOST=192.168.1.X
+MQTT_PORT=1883
+MQTT_USER=
+MQTT_PASS=
+```
+
+To update or configure broker credentials at any time:
+```bash
+# On either Pi:
+sudo nano /persist/secrets/mqtt.env
+sudo rpi-persist-save secrets
+sudo systemctl restart rpi-mqtt-monitor
 ```
 
 ---
