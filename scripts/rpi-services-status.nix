@@ -4,12 +4,12 @@ pkgs.writeShellScriptBin "rpi-services-status" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
-  HOST="$(${pkgs.nettools}/bin/hostname 2>/dev/null || hostname)"
-  SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "glances" "tailscaled")
+  HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
+  SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "glances")
 
-  # upsd only runs on pi-primary
+  # tailscaled and upsd only run on pi-primary
   if [ "$HOST" = "pi-primary" ]; then
-    SERVICES+=("upsd")
+    SERVICES+=("tailscaled" "upsd")
   fi
 
   FAILED=()
