@@ -5,7 +5,7 @@ pkgs.writeShellScriptBin "rpi-services-status" ''
   set -euo pipefail
 
   HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
-  SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "glances")
+  SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "rpi-mqtt-monitor")
 
   # tailscaled and upsd only run on pi-primary
   if [ "$HOST" = "pi-primary" ]; then

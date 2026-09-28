@@ -142,7 +142,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     "docker.socket"
     "containerd.service"
     "adguardhome.service"
-    "glances.service"
+    "rpi-mqtt-monitor.service"
     "keepalived.service"
     "upsd.service"
     "upsdrv.service"

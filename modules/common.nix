@@ -3,6 +3,7 @@
 {
   imports = [
     ../scripts
+    ./mqtt-monitor.nix
   ];
   # Time zone matching your existing setup
   time.timeZone = "America/Los_Angeles";
