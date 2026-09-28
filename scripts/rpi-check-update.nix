@@ -4,26 +4,16 @@ pkgs.writeShellScriptBin "rpi-check-update" ''
   #!/usr/bin/env bash
   set -euo pipefail
 
-  # Ensure nix can query metadata in RAM even when root / is read-only
-  export XDG_CACHE_HOME="''${XDG_CACHE_HOME:-/tmp/.cache}"
+  REPO_URL="https://github.com/willyzha/rpi-nix-configs.git"
 
-  FLAKE_REF="github:willyzha/rpi-nix-configs"
+  echo "==> Checking latest GitHub commit for $REPO_URL..."
 
-  echo "==> Querying latest GitHub commit for $FLAKE_REF..."
+  # Query latest commit SHA directly via git wire protocol (instant ~0.3s, zero Nix overhead)
+  LATEST_REV=$(${pkgs.git}/bin/git ls-remote "$REPO_URL" HEAD 2>/dev/null | ${pkgs.coreutils}/bin/cut -f1 || echo "")
 
-  # Query latest commit info from GitHub via flake metadata (~1-2 seconds, no heavy NixOS evaluation)
-  META=$(${pkgs.nix}/bin/nix flake metadata "$FLAKE_REF" --refresh --json 2>/dev/null || true)
-
-  if [ -z "$META" ]; then
-    echo "Error: Failed to fetch metadata from $FLAKE_REF. Check network connectivity." >&2
+  if [ -z "$LATEST_REV" ]; then
+    echo "Error: Failed to connect to $REPO_URL. Check network connectivity." >&2
     exit 2
-  fi
-
-  LATEST_REV=$(echo "$META" | ${pkgs.jq}/bin/jq -r '.revision // "unknown"')
-  LATEST_TIME=$(echo "$META" | ${pkgs.jq}/bin/jq -r '.lastModified // 0')
-  LATEST_DATE=""
-  if [ "$LATEST_TIME" -gt 0 ]; then
-    LATEST_DATE=$(date -d "@$LATEST_TIME" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "")
   fi
 
   # Read running system's baked-in configuration revision
@@ -34,16 +24,11 @@ pkgs.writeShellScriptBin "rpi-check-update" ''
 
   echo ""
   if [ -n "$CURRENT_REV" ]; then
-    echo "Running System Commit: $CURRENT_REV"
+    echo "Running System: ''${CURRENT_REV:0:12} ($CURRENT_REV)"
   else
-    echo "Running System Commit: (unknown - generation built before commit tracking)"
+    echo "Running System: (generation built before commit tracking was enabled)"
   fi
-
-  if [ -n "$LATEST_DATE" ]; then
-    echo "Latest GitHub Commit:  $LATEST_REV ($LATEST_DATE)"
-  else
-    echo "Latest GitHub Commit:  $LATEST_REV"
-  fi
+  echo "Latest GitHub:  ''${LATEST_REV:0:12} ($LATEST_REV)"
   echo ""
 
   if [ -n "$CURRENT_REV" ] && [ "$CURRENT_REV" = "$LATEST_REV" ]; then
