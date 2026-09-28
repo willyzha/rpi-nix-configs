@@ -6,13 +6,17 @@
   boot = {
     kernelPackages = lib.mkDefault pkgs.linuxKernel.packages.linux_rpi3;
 
-    initrd.availableKernelModules = [
-      "mmc_block"
-      "bcm2835_dma"
-      "usbhid"
-      "usb_storage"
-      "vc4"
-    ];
+    initrd = {
+      includeDefaultModules = false; # Do not pull in x86/PC SATA, AHCI, NVMe drivers not in RPi kernel
+      availableKernelModules = [
+        "mmc_block"
+        "bcm2835_dma"
+        "usbhid"
+        "usb_storage"
+        "vc4"
+        "ext4"
+      ];
+    };
 
     loader = {
       grub.enable = false;
@@ -26,12 +30,13 @@
     ];
   };
 
-  # Fix: modprobe: FATAL: Module ahci not found in directory
-  # On Raspberry Pi kernels, PC/SATA modules like ahci are not present.
-  # This overlay instructs makeModulesClosure to allow missing modules.
+  # Fix: ensure kmod (modprobe/depmod) is in nativeBuildInputs for makeModulesClosure
+  # and allowMissing is true to safely handle custom RPi modules.
   nixpkgs.overlays = [
     (_final: super: {
-      makeModulesClosure = x: super.makeModulesClosure (x // { allowMissing = true; });
+      makeModulesClosure = x: (super.makeModulesClosure (x // { allowMissing = true; })).overrideAttrs (old: {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ super.kmod ];
+      });
     })
   ];
 
