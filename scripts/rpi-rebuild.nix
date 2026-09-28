@@ -11,7 +11,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
   fi
 
   # Automatically detect which Pi node we are running on (pi-primary or pi-secondary)
-  CURRENT_HOST="$(hostname)"
+  CURRENT_HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
   DEFAULT_FLAKE="github:willyzha/rpi-nix-configs#$CURRENT_HOST"
 
   ACTION="boot"

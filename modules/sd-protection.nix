@@ -17,7 +17,7 @@
   fileSystems."/boot/firmware" = {
     device = "/dev/disk/by-label/FIRMWARE";
     fsType = "vfat";
-    options = [ "ro" "noatime" "nofail" "fmask=0137" "dmask=0027" ];
+    options = lib.mkForce [ "ro" "noatime" "nofail" "fmask=0137" "dmask=0027" ];
   };
 
   # 3a. Mount physical persistent SD card partition at /persist-raw (ext4).
