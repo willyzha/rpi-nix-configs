@@ -12,5 +12,7 @@
     (import ./rpi-persist-save.nix { inherit pkgs; })
     (import ./rpi-rebuild.nix { inherit pkgs; })
     (import ./rpi-check-update.nix { inherit pkgs; })
+    (import ./rpi-vrrp-status.nix { inherit pkgs; })
+    (import ./rpi-services-status.nix { inherit pkgs; })
   ];
 }

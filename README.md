@@ -66,6 +66,8 @@ This setup prevents wear while preserving convenience:
 5. **`rpi-rebuild` command**: Built-in helper that automatically saves pending overlay changes, remounts `/` and `/boot/firmware` as `rw`, executes `nixos-rebuild`, and restores them to `ro` upon completion.
 6. **`rpi-persist-save` command**: Built-in helper to commit modified files/directories from the `/persist` overlay down to physical SD card storage (`/persist-raw`).
 7. **`rpi-check-update` command**: Built-in helper to check if the running system is in sync with the latest GitHub commit (with optional `--diff` support).
+8. **`rpi-vrrp-status` command**: Built-in helper to check whether the local node is `MASTER` or `BACKUP` for Keepalived.
+9. **`rpi-services-status` command**: Built-in helper to check real-time health of all cluster services.
 
 ---
 
