@@ -55,7 +55,7 @@ def publish_discovery(client, device_id):
     attrs_topic = f"espresense_simple_tracker/device_tracker/{safe_id}/attributes"
     
     payload = {
-        "name": None,
+        "has_entity_name": True,
         "state_topic": state_topic,
         "json_attributes_topic": attrs_topic,
         "source_type": "bluetooth_le",
