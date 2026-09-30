@@ -32,7 +32,6 @@ for d in raw_devices:
     DEVICES_TO_TRACK[dev_id] = dev_name
 
 TRACK_ALL = "*" in DEVICES_TO_TRACK
-logger.info(f"DEVICES_TO_TRACK: {DEVICES_TO_TRACK}")
 
 TIMEOUT_SECONDS = int(os.getenv("TIMEOUT", 120))
 MAX_DISTANCE = float(os.getenv("MAX_DISTANCE", 15.0))
@@ -92,7 +91,7 @@ def on_message(client, userdata, msg):
             # logger.info(f"Skipping {device_id} (not in DEVICES_TO_TRACK)")
             return
             
-        logger.info(f"Processing {device_id} in room {room}")
+        logger.info(f"Processing {device_id} at node {node_id}")
 
         payload = json.loads(msg.payload.decode('utf-8'))
         distance = payload.get("distance")
@@ -123,7 +122,7 @@ def on_message(client, userdata, msg):
             update_and_publish_state(client, device_id, now)
 
     except Exception as e:
-        logger.debug(f"Error processing message {msg.topic}: {e}")
+        logger.error(f"Error processing message {msg.topic}: {e}")
 
 def format_room_name(node_id):
     if not node_id or node_id == "not_home":
