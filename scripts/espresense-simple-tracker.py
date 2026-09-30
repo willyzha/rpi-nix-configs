@@ -89,7 +89,10 @@ def on_message(client, userdata, msg):
         node_id = parts[3]
         
         if not TRACK_ALL and device_id not in DEVICES_TO_TRACK:
+            # logger.info(f"Skipping {device_id} (not in DEVICES_TO_TRACK)")
             return
+            
+        logger.info(f"Processing {device_id} in room {room}")
 
         payload = json.loads(msg.payload.decode('utf-8'))
         distance = payload.get("distance")
