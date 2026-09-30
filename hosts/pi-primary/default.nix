@@ -6,6 +6,7 @@
     ../../modules/sd-protection.nix
     ../../modules/hardware-rpi3.nix
     ../../modules/docker.nix
+    ../../modules/espresense-tracker.nix
   ];
 
   networking = {
@@ -221,6 +222,13 @@
       "--keep-weekly 2"
       "--keep-monthly 1"
     ];
+  };
+
+  # ESPresense Simple Tracker
+  services.espresense-tracker = {
+    enable = true;
+    mqttHost = "192.168.1.10";
+    envFile = "/persist/secrets/espresense-tracker.env";
   };
 
   system.stateVersion = "24.05";
