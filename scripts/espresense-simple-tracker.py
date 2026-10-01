@@ -33,7 +33,8 @@ for d in raw_devices:
 
 TRACK_ALL = "*" in DEVICES_TO_TRACK
 
-TIMEOUT_SECONDS = int(os.getenv("TIMEOUT", 120))
+NODE_TIMEOUT_SECONDS = int(os.getenv("NODE_TIMEOUT", os.getenv("TIMEOUT", 30)))
+AWAY_TIMEOUT_SECONDS = int(os.getenv("AWAY_TIMEOUT", 120))
 MAX_DISTANCE = float(os.getenv("MAX_DISTANCE", 15.0))
 HA_DISCOVERY_PREFIX = os.getenv("HA_DISCOVERY_PREFIX", "homeassistant")
 DISCOVERY_INTERVAL = int(os.getenv("DISCOVERY_INTERVAL", 300))
@@ -106,7 +107,8 @@ def on_message(client, userdata, msg):
                 devices_state[device_id] = {
                     "nodes": {},
                     "reported_state": None,
-                    "last_discovery": datetime.min
+                    "last_discovery": datetime.min,
+                    "last_seen_any": datetime.min
                 }
             
             # Periodically re-publish discovery
@@ -118,6 +120,7 @@ def on_message(client, userdata, msg):
                 "distance": distance,
                 "last_seen": now
             }
+            devices_state[device_id]["last_seen_any"] = now
             
             update_and_publish_state(client, device_id, now)
 
@@ -135,17 +138,21 @@ def update_and_publish_state(client, device_id, now):
     # Filter out nodes that haven't been seen recently or are too far
     valid_nodes = {}
     for node, data in list(state_info["nodes"].items()):
-        if (now - data["last_seen"]).total_seconds() <= TIMEOUT_SECONDS:
+        if (now - data["last_seen"]).total_seconds() <= NODE_TIMEOUT_SECONDS:
             if data["distance"] <= MAX_DISTANCE:
                 valid_nodes[node] = data
-        else:
-            # Clean up old nodes to prevent memory leak
+        elif (now - data["last_seen"]).total_seconds() > AWAY_TIMEOUT_SECONDS:
+            # Clean up old nodes from memory
             del state_info["nodes"][node]
             
     if not valid_nodes:
-        new_state = "not_home"
-        closest_node = None
-        closest_distance = None
+        if (now - state_info.get("last_seen_any", datetime.min)).total_seconds() > AWAY_TIMEOUT_SECONDS:
+            new_state = "not_home"
+            closest_node = None
+            closest_distance = None
+        else:
+            # Still within AWAY_TIMEOUT, keep last known state
+            return
     else:
         # Find closest node
         closest_node = min(valid_nodes.keys(), key=lambda n: valid_nodes[n]["distance"])

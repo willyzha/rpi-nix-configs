@@ -48,10 +48,16 @@ in {
       description = "List of device IDs to track. Use ['*'] to track all devices.";
     };
 
-    timeout = mkOption {
+    nodeTimeout = mkOption {
+      type = types.int;
+      default = 30;
+      description = "Time in seconds before a node's reading is considered stale (equivalent to timeout in espresense-companion)";
+    };
+
+    awayTimeout = mkOption {
       type = types.int;
       default = 120;
-      description = "Time in seconds before marking a device as not_home";
+      description = "Time in seconds before marking a device as not_home after all nodes are stale (equivalent to away_timeout)";
     };
 
     maxDistance = mkOption {
@@ -76,7 +82,8 @@ in {
         MQTT_HOST = cfg.mqttHost;
         MQTT_PORT = toString cfg.mqttPort;
         MQTT_USER = cfg.mqttUser;
-        TIMEOUT = toString cfg.timeout;
+        NODE_TIMEOUT = toString cfg.nodeTimeout;
+        AWAY_TIMEOUT = toString cfg.awayTimeout;
         MAX_DISTANCE = toString cfg.maxDistance;
       } // optionalAttrs (length cfg.devices > 0) {
         DEVICES = concatStringsSep "," cfg.devices;
