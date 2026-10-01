@@ -363,7 +363,11 @@ EOF
 
       # Boot timestamp (ISO 8601 UTC)
       UPTIME_SEC=$(awk '{print int($1)}' /proc/uptime)
-      LAST_BOOT=$(date -u -d "@$(( $(date +%s) - UPTIME_SEC ))" +'%Y-%m-%dT%H:%M:%SZ')
+      if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
+        LAST_BOOT=$(date -u -d "@$(( $(date +%s) - UPTIME_SEC ))" +'%Y-%m-%dT%H:%M:%SZ')
+      else
+        LAST_BOOT="null"
+      fi
 
       # VRRP status
       if command -v rpi-vrrp-status >/dev/null 2>&1; then
@@ -408,7 +412,7 @@ EOF
           memory_total_mb: ($mem_total | tonumber),
           cpu_temperature: ($temp | tonumber),
           uptime_seconds: ($uptime | tonumber),
-          last_boot: $boot,
+          last_boot: (if $boot == "null" then null else $boot end),
           vrrp_status: $vrrp,
           vrrp_vip: "192.168.1.9",
           services_health: $svc,
