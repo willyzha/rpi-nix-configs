@@ -12,6 +12,17 @@
   i18n.defaultLocale = "en_US.UTF-8";
 
   # Enable zram compressed swap to prevent OOM on 1GB RAM Pi 3 (compressed RAM, zero SD wear)
+  # Enable EarlyOOM to prevent RCU kernel stall during heavy memory pressure
+  services.earlyoom = {
+    enable = true;
+    freeMemThreshold = 5; # kill when < 5% RAM
+    freeSwapThreshold = 10; # kill when < 10% swap
+    extraArgs = [
+      "--avoid" "^(sshd|tailscaled)$" # Prioritize keeping remote access alive
+      "--prefer" "^(restic|docker)$" # Aggressively kill backup/docker if OOM
+    ];
+  };
+
   zramSwap = {
     enable = true;
     algorithm = "zstd";

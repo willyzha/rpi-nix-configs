@@ -211,7 +211,7 @@
       "/persist/var/lib/docker"
     ];
     extraBackupArgs = [
-      "--cache-dir=/tmp/restic-cache"
+      "--cache-dir=/persist/var/cache/restic"
     ];
     timerConfig = {
       OnCalendar = "03:00";
