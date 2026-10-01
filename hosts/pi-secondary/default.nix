@@ -164,7 +164,7 @@
       "/persist/var/lib/docker"
     ];
     extraBackupArgs = [
-      "--cache-dir=/persist/var/cache/restic"
+      "--no-cache"
     ];
     timerConfig = {
       OnCalendar = "03:30"; # Staggered 30 mins after primary
