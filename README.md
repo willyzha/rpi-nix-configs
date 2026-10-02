@@ -100,8 +100,7 @@ When formatting or flashing an SD card for these configurations, partition label
 
 Building directly on a Raspberry Pi can trigger OOM crashes and heavy SD card swap wear. Instead, we use a containerized cross-compilation environment that builds the system closure on your fast x86_64 host and deploys it over SSH.
 
-> [!NOTE]
-> For a deep dive into the update mechanics, fallback standalone on-device builds (`sudo rpi-rebuild`), and how the zero-wear lifecycle scripts work under the hood, see the [Full Update Documentation (update-readme.md)](update-readme.md).
+> **Note:** For a deep dive into the update mechanics, fallback standalone on-device builds (`sudo rpi-rebuild`), and how the zero-wear lifecycle scripts work under the hood, see the [Full Update Documentation (update-readme.md)](update-readme.md).
 
 ### Method 1: Build & Deploy via Local Repository
 
@@ -173,34 +172,33 @@ Initial setup is fully automated using flashable SD card images released directl
    ```bash
    sudo rpi-onboard
    ```
-   > [!NOTE]
-   > For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (secrets-readme.md)](secrets-readme.md).
+   > **Note:** For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (secrets-readme.md)](secrets-readme.md).
 
-   - **Restart Affected Services & Test Backup**:
-     ```bash
-     # On kir-pi-primary:
-     sudo systemctl restart keepalived
-     sudo systemctl start restic-backups-persist.service
+6. **Restart Affected Services & Test Backup**:
+   ```bash
+   # On kir-pi-primary:
+   sudo systemctl restart keepalived
+   sudo systemctl start restic-backups-persist.service
 
-     # On kir-pi-secondary:
-     sudo systemctl restart keepalived wireguard-wg0
-     sudo systemctl start restic-backups-persist.service
+   # On kir-pi-secondary:
+   sudo systemctl restart keepalived wireguard-wg0
+   sudo systemctl start restic-backups-persist.service
 
-     # View backup logs:
-     sudo journalctl -u restic-backups-persist.service -f
+   # View backup logs:
+   sudo journalctl -u restic-backups-persist.service -f
 
-     # View snapshots:
-     sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
-     ```
+   # View snapshots:
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
+   ```
 
-6. **Enable Tailscale (on `kir-pi-primary`)**:
+7. **Enable Tailscale (on `kir-pi-primary`)**:
    Authenticate Tailscale as a subnet router and exit node:
    ```bash
    sudo tailscale up --advertise-exit-node --accept-routes
    ```
    Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
 
-7. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
+8. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
    AdGuard Home runs natively on both nodes with persistent settings stored in `/persist/var/lib/AdGuardHome/`:
    - `kir-pi-primary` Web interface: `http://kir-pi-primary.local:3000`
    - `kir-pi-secondary` Web interface: `http://kir-pi-secondary.local:3000`
