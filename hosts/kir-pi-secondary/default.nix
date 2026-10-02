@@ -86,10 +86,29 @@
       dns = {
         bind_hosts = [ "0.0.0.0" ];
         port = 53;
+        
+        # Security: DNS-over-HTTPS (DoH) upstreams (Quad9 + Cloudflare Malware blocking)
         upstream_dns = [
-          "8.8.8.8"
+          "https://dns.quad9.net/dns-query"
+          "https://security.cloudflare-dns.com/dns-query"
+        ];
+        
+        # Bootstrap DNS to resolve the DoH hostnames
+        bootstrap_dns = [
+          "9.9.9.9"
           "1.1.1.1"
         ];
+
+        # Performance: Query all upstreams simultaneously and return the fastest response
+        upstream_mode = "parallel";
+        
+        # Performance: DNS Caching optimization
+        cache_size = 4194304; # 4MB cache
+        cache_ttl_min = 3600; # 1 hour minimum TTL
+        cache_ttl_max = 86400; # 1 day maximum TTL
+        
+        # Disable rate limiting for local network devices
+        ratelimit = 0;
       };
       querylog = {
         enabled = true;
@@ -108,6 +127,12 @@
           url = "https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt";
           name = "AdAway Default Blocklist";
           id = 2;
+        }
+        {
+          enabled = true;
+          url = "https://big.oisd.nl";
+          name = "OISD Big (Zero False Positives)";
+          id = 3;
         }
       ];
     };
