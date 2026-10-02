@@ -9,7 +9,7 @@
   ];
 
   networking = {
-    hostName = "pi-secondary";
+    hostName = "kir-pi-secondary";
 
     # In-Kernel WireGuard VPN server (0 MB daemon RAM, runs directly in Linux kernel)
     wireguard.interfaces.wg0 = {

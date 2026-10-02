@@ -10,7 +10,7 @@
   ];
 
   networking = {
-    hostName = "pi-primary";
+    hostName = "kir-pi-primary";
     firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
   };
 
