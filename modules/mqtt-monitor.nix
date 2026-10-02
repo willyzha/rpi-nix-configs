@@ -150,6 +150,24 @@ EOF
 EOF
 )"
 
+
+      # Last Backup Timestamp Sensor
+      publish_discovery "sensor" "last_backup" "$(cat <<EOF
+{
+  "name": "Last Backup",
+  "unique_id": "${nodeId}_last_backup",
+  "state_topic": "${stateTopic}",
+  "value_template": "{{ value_json.last_backup }}",
+  "device_class": "timestamp",
+  "entity_category": "diagnostic",
+  "icon": "mdi:cloud-check",
+  "availability_topic": "${availTopic}",
+  "expire_after": 180,
+  "device": $DEVICE_JSON
+}
+EOF
+)"
+
       # VRRP Role Status Sensor
       publish_discovery "sensor" "vrrp_status" "$(cat <<EOF
 {
@@ -369,6 +387,14 @@ EOF
         LAST_BOOT="null"
       fi
 
+
+      # Restic Backup status
+      if [ -f /persist/var/cache/restic/last_success ]; then
+        LAST_BACKUP=$(cat /persist/var/cache/restic/last_success)
+      else
+        LAST_BACKUP="null"
+      fi
+
       # VRRP status
       if command -v rpi-vrrp-status >/dev/null 2>&1; then
         VRRP_STATUS=$(rpi-vrrp-status 2>/dev/null || echo "Unknown")
@@ -399,6 +425,7 @@ EOF
         --arg temp "$CPU_TEMP" \
         --arg uptime "$UPTIME_SEC" \
         --arg boot "$LAST_BOOT" \
+        --arg backup "$LAST_BACKUP" \
         --arg vrrp "$VRRP_STATUS" \
         --arg svc "$SERVICES_HEALTH" \
         --argjson update "$UPDATE_AVAIL" \
@@ -413,6 +440,7 @@ EOF
           cpu_temperature: ($temp | tonumber),
           uptime_seconds: ($uptime | tonumber),
           last_boot: (if $boot == "null" then null else $boot end),
+          last_backup: (if $backup == "null" then null else $backup end),
           vrrp_status: $vrrp,
           vrrp_vip: "192.168.1.9",
           services_health: $svc,

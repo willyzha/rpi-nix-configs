@@ -231,5 +231,9 @@
     envFile = "/persist/secrets/espresense-tracker.env";
   };
 
+  systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
+    "-/bin/sh -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then mkdir -p /persist/var/cache/restic && date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
+  ];
+
   system.stateVersion = "24.05";
 }
