@@ -28,5 +28,15 @@ cd "$SCRIPT_DIR"
 # Ensure output directory exists on host for build artifacts / images
 mkdir -p "$SCRIPT_DIR/output"
 
+# Sanitize arguments: strip user@ prefix if passed (e.g. pi@kir-pi-primary.local -> kir-pi-primary.local)
+CLEANED_ARGS=()
+for arg in "$@"; do
+  if [[ "$arg" =~ ^([^@]+)@(.+)$ ]]; then
+    CLEANED_ARGS+=("${BASH_REMATCH[2]}")
+  else
+    CLEANED_ARGS+=("$arg")
+  fi
+done
+
 # Execute rebuild service inside container
-exec $COMPOSE_CMD run --rm rebuild "$@"
+exec $COMPOSE_CMD run --rm rebuild "${CLEANED_ARGS[@]}"

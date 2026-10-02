@@ -68,7 +68,7 @@ fi
 
 is_ip_or_address() {
   local val="$1"
-  [[ "$val" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ || "$val" =~ \.local$ || "$val" =~ : ]]
+  [[ "$val" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ || "$val" =~ : ]]
 }
 
 is_action() {
@@ -80,6 +80,25 @@ is_action() {
 RAW_ARG1="${1:-}"
 RAW_ARG2="${2:-}"
 RAW_ARG3="${3:-}"
+
+# Normalize input arguments: strip any user@ prefix (nixos-rebuild requires root access)
+if [[ "$RAW_ARG1" =~ ^([^@]+)@(.+)$ ]]; then
+  RAW_ARG1="${BASH_REMATCH[2]}"
+fi
+if [[ "$RAW_ARG2" =~ ^([^@]+)@(.+)$ ]]; then
+  RAW_ARG2="${BASH_REMATCH[2]}"
+fi
+if [[ "$RAW_ARG3" =~ ^([^@]+)@(.+)$ ]]; then
+  RAW_ARG3="${BASH_REMATCH[2]}"
+fi
+
+# Normalize .local suffix for known hostnames
+if [[ "$RAW_ARG1" =~ \.local$ ]]; then
+  RAW_ARG1="${RAW_ARG1%.local}"
+fi
+if [[ "$RAW_ARG2" =~ \.local$ ]]; then
+  RAW_ARG2="${RAW_ARG2%.local}"
+fi
 
 TARGET_IP="${TARGET_IP:-}"
 TARGET_HOST="${TARGET_HOST:-}"
@@ -109,7 +128,7 @@ if [ -n "$RAW_ARG1" ]; then
       fi
     fi
   else
-    # e.g.: ./docker-rebuild.sh pi-primary [ACTION] [IP]
+    # e.g.: ./docker-rebuild.sh kir-pi-primary [ACTION] [IP]
     TARGET_HOST="$RAW_ARG1"
     if [ -n "$RAW_ARG2" ]; then
       if is_action "$RAW_ARG2"; then
@@ -189,11 +208,14 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
   # If TARGET_IP is not given, but TARGET_HOST is known:
   if [ -z "$TARGET_IP" ]; then
     case "$TARGET_HOST" in
-      pi-primary)
+      pi-primary|kir-pi-primary)
         TARGET_IP="192.168.1.11"
         ;;
-      pi-secondary)
+      pi-secondary|kir-pi-secondary)
         TARGET_IP="192.168.1.12"
+        ;;
+      ott-pi-primary)
+        TARGET_IP="ott-pi-primary.local"
         ;;
       *)
         # Try probing known nodes
@@ -248,11 +270,20 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
 
   if [ -n "$DETECTED_HOSTNAME" ]; then
     echo -e "  ${GREEN}✓ Connected!${NC} Node identified as: ${BOLD}${DETECTED_HOSTNAME}${NC}"
+    # Map legacy detected hostname to current flake configuration
+    case "$DETECTED_HOSTNAME" in
+      pi-primary) DETECTED_CONFIG="kir-pi-primary" ;;
+      pi-secondary) DETECTED_CONFIG="kir-pi-secondary" ;;
+      *) DETECTED_CONFIG="$DETECTED_HOSTNAME" ;;
+    esac
+
     if [ -z "$TARGET_HOST" ]; then
-      TARGET_HOST="$DETECTED_HOSTNAME"
-    elif [ "$TARGET_HOST" != "$DETECTED_HOSTNAME" ]; then
+      TARGET_HOST="$DETECTED_CONFIG"
+    elif [ "$TARGET_HOST" != "$DETECTED_CONFIG" ] && [ "$TARGET_HOST" != "$DETECTED_HOSTNAME" ]; then
       echo -e "  ${YELLOW}Notice: Node reported hostname '${DETECTED_HOSTNAME}', but '${TARGET_HOST}' was explicitly set.${NC}"
       echo -e "  Using explicit configuration: ${BOLD}${TARGET_HOST}${NC}"
+    else
+      TARGET_HOST="$DETECTED_CONFIG"
     fi
   else
     if [ -z "$TARGET_HOST" ]; then
@@ -261,7 +292,7 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
         192.168.1.12) TARGET_HOST="kir-pi-secondary" ;;
         *)
           echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
-          echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh pi-primary boot $TARGET_IP)" >&2
+          echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh kir-pi-primary boot $TARGET_IP)" >&2
           exit 1
           ;;
       esac
@@ -405,7 +436,9 @@ echo -e "\n${GREEN}==> Step 5/5: Activating configuration (${ACTION}) on ${TARGE
 ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "nix-env -p /nix/var/nix/profiles/system --set $TOPLEVEL"
 
 # Run switch-to-configuration
-ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "$TOPLEVEL/bin/switch-to-configuration $ACTION"
+if [[ "$ACTION" != "dry-build" ]]; then
+  ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "$TOPLEVEL/bin/switch-to-configuration $ACTION"
+fi
 
 # Commit any pending overlay changes to SD card if tool is installed
 ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "if command -v rpi-persist-save >/dev/null 2>&1; then rpi-persist-save || true; fi"

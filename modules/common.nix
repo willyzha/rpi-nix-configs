@@ -58,7 +58,8 @@
   # Networking
   networking = {
     usePredictableInterfaceNames = lib.mkDefault false; # Keep eth0 interface name for SMSC9514 USB-Ethernet
-    useDHCP = lib.mkDefault true; # Auto-detect IP, router gateway, and DNS on any network
+    useDHCP = lib.mkDefault false; # Avoid acquiring DHCP leases on virtual interfaces (vrrp.51, wg0, docker0)
+    interfaces.eth0.useDHCP = lib.mkDefault true; # Auto-detect IP on physical eth0
     firewall.enable = false; # Disable internal firewall by default (handled by container/services)
     nameservers = [ "192.168.1.11" "1.1.1.1" "9.9.9.9" ];
   };
@@ -95,6 +96,7 @@
   services.avahi = {
     enable = true;
     nssmdns4 = true;
+    allowInterfaces = [ "eth0" ]; # Only publish real physical ethernet IP, never virtual/vrrp interfaces
     publish = {
       enable = true;
       addresses = true;

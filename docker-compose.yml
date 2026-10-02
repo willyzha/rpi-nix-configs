@@ -20,6 +20,7 @@ services:
     network_mode: host
     volumes:
       - .:/workspace
+      - ./docker/deploy.sh:/usr/local/bin/deploy:ro
       - rpi-nix-store:/nix
       - rpi-nix-cache:/root/.cache
       - ${HOME}/.ssh:/root/.ssh:ro

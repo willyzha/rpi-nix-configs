@@ -45,6 +45,10 @@
             })
           ];
         };
+
+        # Legacy aliases for seamless backwards-compatible deployments
+        pi-primary = self.nixosConfigurations.kir-pi-primary;
+        pi-secondary = self.nixosConfigurations.kir-pi-secondary;
       };
 
       # Direct image package shortcuts for easy building
