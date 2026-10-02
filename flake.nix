@@ -35,11 +35,11 @@
         };
 
         # Remote Pi (Ottawa)
-        ott-pi = nixpkgs.lib.nixosSystem {
+        ott-pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
             ./modules/sd-image.nix
-            ./hosts/ott-pi/default.nix
+            ./hosts/ott-pi-primary/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
             })
@@ -51,7 +51,7 @@
       packages.${system} = {
         kir-pi-primary-image = self.nixosConfigurations.kir-pi-primary.config.system.build.sdImage;
         kir-pi-secondary-image = self.nixosConfigurations.kir-pi-secondary.config.system.build.sdImage;
-        ott-pi-image = self.nixosConfigurations.ott-pi.config.system.build.sdImage;
+        ott-pi-primary-image = self.nixosConfigurations.ott-pi-primary.config.system.build.sdImage;
       };
     };
 }
