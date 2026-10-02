@@ -297,12 +297,12 @@ Initial setup is fully automated using flashable SD card images released directl
 
    *(Note: `kir-pi-secondary` does not use Tailscale natively).*
 
-8. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
-   AdGuard Home runs natively on both nodes with persistent settings stored in `/persist/var/lib/AdGuardHome/`:
-   - `kir-pi-primary` Web interface: `http://kir-pi-primary.local:3000`
-   - `kir-pi-secondary` Web interface: `http://kir-pi-secondary.local:3000`
-   - Cluster VIP Web interface: `http://192.168.1.9:3000`
-   - DNS server port: `53` (answers queries on node IPs and the shared VIP `192.168.1.9`).
+8. **Access AdGuard Home Dashboards (No Setup Required)**:
+   NixOS automatically pre-provisions AdGuard Home with optimal defaults (binding to port `53`, configuring upstream DNS) during installation, so **no manual UI setup is required!** It runs natively on both primary nodes.
+   You can view your ad-blocking stats and dashboards immediately at:
+   - `kir-pi-primary` Dashboard: `http://kir-pi-primary.local:3000`
+   - `kir-pi-secondary` Dashboard: `http://kir-pi-secondary.local:3000`
+   - Cluster VIP Dashboard: `http://192.168.1.9:3000`
 
 
 ---
