@@ -31,6 +31,13 @@
   # ---------------------------------------------------------------------------
   # State Persistence for Native Services (Bind-mounted from /persist)
   # ---------------------------------------------------------------------------
+  fileSystems."/var/lib/tailscale" = {
+    device = "/persist/var/lib/tailscale";
+    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
+    noCheck = true;
+    depends = [ "/persist" ];
+  };
+
   fileSystems."/var/lib/AdGuardHome" = {
     device = "/persist/var/lib/AdGuardHome";
     options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
@@ -41,6 +48,11 @@
   # ---------------------------------------------------------------------------
   # Native NixOS Services
   # ---------------------------------------------------------------------------
+
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "server"; # Allow exit node/subnet router functionality
+  };
 
   # 1. Keepalived VRRP Backup Node (~4MB RAM, monitors port 443 for SWAG)
   services.keepalived = {
