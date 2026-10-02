@@ -33,12 +33,25 @@
             })
           ];
         };
+
+        # Remote Pi (Ottawa)
+        pi-remote = nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./modules/sd-image.nix
+            ./hosts/pi-remote/default.nix
+            ({ ... }: {
+              system.configurationRevision = self.rev or self.dirtyRev or null;
+            })
+          ];
+        };
       };
 
       # Direct image package shortcuts for easy building
       packages.${system} = {
         pi-primary-image = self.nixosConfigurations.pi-primary.config.system.build.sdImage;
         pi-secondary-image = self.nixosConfigurations.pi-secondary.config.system.build.sdImage;
+        pi-remote-image = self.nixosConfigurations.pi-remote.config.system.build.sdImage;
       };
     };
 }
