@@ -23,6 +23,13 @@
     ];
   };
 
+
+  # Hardware Watchdog & Auto-Reboot on Kernel Panic
+  # BCM2835 WDT has a strict 15-second maximum timeout.
+  systemd.watchdog.runtimeTime = "14s"; # systemd will ping the WDT every 7s
+  systemd.watchdog.rebootTime = "14s";
+  systemd.watchdog.kexecTime = "14s";
+
   zramSwap = {
     enable = true;
     algorithm = "zstd";
@@ -61,6 +68,15 @@
     # IP forwarding and routing marks for containers, WireGuard, and Tailscale
     "net.ipv4.ip_forward" = 1;
     "net.ipv4.conf.all.src_valid_mark" = 1;
+
+    # Auto-reboot safely on kernel panics (e.g. RCU starvation or soft lockups) instead of freezing forever
+    "kernel.panic" = 10;
+    "kernel.panic_on_oops" = 1;
+    "kernel.softlockup_panic" = 1;
+    "kernel.hung_task_panic" = 1;
+    "kernel.hung_task_timeout_secs" = 120;
+    "vm.panic_on_oom" = 0; # Let earlyoom handle OOM natively, but panic if kernel OOM fails
+
 
     # Disable strict reverse path filtering so packets routed to VMAC (vrrp.51) aren't dropped
     "net.ipv4.conf.all.rp_filter" = 0;
