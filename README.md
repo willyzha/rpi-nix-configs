@@ -238,64 +238,64 @@ Initial setup is fully automated using flashable SD card images released directl
 6. **Restart Affected Services & Test Backup**:
    *(Alternatively, simply `sudo reboot` to start all services cleanly with the new secrets).*
 
-<details>
-<summary><b>Test on <code>kir-pi-primary</code></b></summary>
+   <details>
+   <summary><b>Test on <code>kir-pi-primary</code></b></summary>
 
-```bash
-sudo systemctl restart keepalived
-sudo systemctl start restic-backups-persist.service
-sudo journalctl -u restic-backups-persist.service -f
-sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
-```
+   ```bash
+   sudo systemctl restart keepalived
+   sudo systemctl start restic-backups-persist.service
+   sudo journalctl -u restic-backups-persist.service -f
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
+   ```
 
-</details>
+   </details>
 
-<details>
-<summary><b>Test on <code>kir-pi-secondary</code></b></summary>
+   <details>
+   <summary><b>Test on <code>kir-pi-secondary</code></b></summary>
 
-```bash
-sudo systemctl restart keepalived wireguard-wg0
-sudo systemctl start restic-backups-persist.service
-sudo journalctl -u restic-backups-persist.service -f
-sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-secondary --password-file /persist/secrets/restic-password snapshots
-```
+   ```bash
+   sudo systemctl restart keepalived wireguard-wg0
+   sudo systemctl start restic-backups-persist.service
+   sudo journalctl -u restic-backups-persist.service -f
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-secondary --password-file /persist/secrets/restic-password snapshots
+   ```
 
-</details>
+   </details>
 
-<details>
-<summary><b>Test on <code>ott-pi-primary</code></b></summary>
+   <details>
+   <summary><b>Test on <code>ott-pi-primary</code></b></summary>
 
-```bash
-sudo systemctl restart wireguard-wg0
-sudo systemctl start restic-backups-persist.service
-sudo journalctl -u restic-backups-persist.service -f
-sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/ott-pi-primary --password-file /persist/secrets/restic-password snapshots
-```
+   ```bash
+   sudo systemctl restart wireguard-wg0
+   sudo systemctl start restic-backups-persist.service
+   sudo journalctl -u restic-backups-persist.service -f
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/ott-pi-primary --password-file /persist/secrets/restic-password snapshots
+   ```
 
-</details>
+   </details>
 
 7. **Enable Tailscale**:
    Authenticate your nodes with Tailscale. Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
 
-<details>
-<summary><b>Enable on <code>kir-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
+   <details>
+   <summary><b>Enable on <code>kir-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
 
-```bash
-sudo tailscale up --advertise-exit-node --accept-routes
-```
+   ```bash
+   sudo tailscale up --advertise-exit-node --accept-routes
+   ```
 
-</details>
+   </details>
 
-<details>
-<summary><b>Enable on <code>ott-pi-primary</code></b> (Exit Node)</summary>
+   <details>
+   <summary><b>Enable on <code>ott-pi-primary</code></b> (Exit Node)</summary>
 
-```bash
-sudo tailscale up --advertise-exit-node
-```
+   ```bash
+   sudo tailscale up --advertise-exit-node
+   ```
 
-</details>
+   </details>
 
-*(Note: `kir-pi-secondary` does not use Tailscale natively).*
+   *(Note: `kir-pi-secondary` does not use Tailscale natively).*
 
 8. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
    AdGuard Home runs natively on both nodes with persistent settings stored in `/persist/var/lib/AdGuardHome/`:
