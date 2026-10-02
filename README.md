@@ -236,6 +236,7 @@ Initial setup is fully automated using flashable SD card images released directl
    > **Note:** For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (secrets-readme.md)](secrets-readme.md).
 
 6. **Restart Affected Services & Test Backup**:
+   *(Alternatively, simply `sudo reboot` to start all services cleanly with the new secrets).*
    ```bash
    # On kir-pi-primary:
    sudo systemctl restart keepalived
@@ -245,17 +246,25 @@ Initial setup is fully automated using flashable SD card images released directl
    sudo systemctl restart keepalived wireguard-wg0
    sudo systemctl start restic-backups-persist.service
 
+   # On ott-pi-primary:
+   sudo systemctl restart wireguard-wg0
+   sudo systemctl start restic-backups-persist.service
+
    # View backup logs:
    sudo journalctl -u restic-backups-persist.service -f
 
-   # View snapshots:
+   # View snapshots (replace kir-pi-primary with your node):
    sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
    ```
 
-7. **Enable Tailscale (on `kir-pi-primary`)**:
-   Authenticate Tailscale as a subnet router and exit node:
+7. **Enable Tailscale (on `kir-pi-primary` and `ott-pi-primary`)**:
+   Authenticate Tailscale.
    ```bash
+   # On kir-pi-primary (subnet router + exit node):
    sudo tailscale up --advertise-exit-node --accept-routes
+   
+   # On ott-pi-primary (exit node only):
+   sudo tailscale up --advertise-exit-node
    ```
    Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
 
