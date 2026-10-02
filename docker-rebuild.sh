@@ -28,17 +28,7 @@ cd "$SCRIPT_DIR"
 # Ensure output directory exists on host for build artifacts / images
 mkdir -p "$SCRIPT_DIR/output"
 
-# Sanitize arguments: strip user@ prefix if passed (e.g. pi@kir-pi-primary.local -> kir-pi-primary.local)
-CLEANED_ARGS=()
-for arg in "$@"; do
-  if [[ "$arg" =~ ^([^@]+)@(.+)$ ]]; then
-    CLEANED_ARGS+=("${BASH_REMATCH[2]}")
-  else
-    CLEANED_ARGS+=("$arg")
-  fi
-done
-
-# Host-side DNS / mDNS resolution helper (resolves .local names via host avahi/nss before entering container)
+# Host-side DNS / mDNS resolution helper
 resolve_host_to_ip() {
   local target="$1"
   if [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -68,21 +58,29 @@ resolve_host_to_ip() {
 }
 
 # Resolve target IP from host DNS/mDNS if a target hostname was provided
-if [ "${#CLEANED_ARGS[@]}" -gt 0 ]; then
-  FIRST_ARG="${CLEANED_ARGS[0]}"
+if [ "$#" -gt 0 ]; then
+  FIRST_ARG="$1"
   if [[ ! "$FIRST_ARG" =~ ^(boot|switch|test|dry-build|dry-activate|build-only|build|image|shell|bash)$ ]]; then
     if RESOLVED_IP=$(resolve_host_to_ip "$FIRST_ARG"); then
       export TARGET_IP="$RESOLVED_IP"
       echo "Host DNS/mDNS resolved '${FIRST_ARG}' -> ${TARGET_IP}"
+    elif [[ ! "$FIRST_ARG" =~ ^(help|-h|--help)$ ]]; then
+      echo "Error: DNS/mDNS resolution failed for '${FIRST_ARG}'." >&2
+      echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
+      exit 1
     fi
-  elif [ "${#CLEANED_ARGS[@]}" -gt 1 ]; then
-    SECOND_ARG="${CLEANED_ARGS[1]}"
+  elif [ "$#" -gt 1 ]; then
+    SECOND_ARG="$2"
     if RESOLVED_IP=$(resolve_host_to_ip "$SECOND_ARG"); then
       export TARGET_IP="$RESOLVED_IP"
       echo "Host DNS/mDNS resolved '${SECOND_ARG}' -> ${TARGET_IP}"
+    else
+      echo "Error: DNS/mDNS resolution failed for '${SECOND_ARG}'." >&2
+      echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
+      exit 1
     fi
   fi
 fi
 
 # Execute rebuild service inside container
-exec $COMPOSE_CMD run --rm rebuild "${CLEANED_ARGS[@]}"
+exec $COMPOSE_CMD run --rm rebuild "$@"
