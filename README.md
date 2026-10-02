@@ -201,7 +201,7 @@ docker run --rm --net=host \
 
 Initial setup is fully automated using flashable SD card images released directly by GitHub Actions.
 
-### Method 1: Burn Pre-Built Image (Recommended)
+### Installation Steps
 
 1. **Download Image**:
    - Go to your repository's **Releases** tab on GitHub (or the **Actions** tab artifacts).
@@ -302,7 +302,7 @@ Initial setup is fully automated using flashable SD card images released directl
 
 ---
 
-### Method 2: Triggering a New Image Build
+### Automated Image Generation (GitHub Actions)
 
 Images are built automatically by GitHub Actions:
 - **On Tag**: Push any version tag (e.g. `git tag v1.0.0 && git push --tags`) to trigger a build and publish a GitHub Release with the flashable images and checksums.
