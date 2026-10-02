@@ -81,17 +81,6 @@ RAW_ARG1="${1:-}"
 RAW_ARG2="${2:-}"
 RAW_ARG3="${3:-}"
 
-# Normalize input arguments: strip any user@ prefix (nixos-rebuild requires root access)
-if [[ "$RAW_ARG1" =~ ^([^@]+)@(.+)$ ]]; then
-  RAW_ARG1="${BASH_REMATCH[2]}"
-fi
-if [[ "$RAW_ARG2" =~ ^([^@]+)@(.+)$ ]]; then
-  RAW_ARG2="${BASH_REMATCH[2]}"
-fi
-if [[ "$RAW_ARG3" =~ ^([^@]+)@(.+)$ ]]; then
-  RAW_ARG3="${BASH_REMATCH[2]}"
-fi
-
 # Normalize .local suffix for known hostnames
 if [[ "$RAW_ARG1" =~ \.local$ ]]; then
   RAW_ARG1="${RAW_ARG1%.local}"
@@ -205,32 +194,17 @@ fi
 # Auto-detect Target Host & IP if needed
 # ------------------------------------------------------------------------------
 if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" ]]; then
-  # If TARGET_IP is not given, but TARGET_HOST is known:
+  # If TARGET_IP is not given, resolution failed
   if [ -z "$TARGET_IP" ]; then
-    case "$TARGET_HOST" in
-      pi-primary|kir-pi-primary)
-        TARGET_IP="192.168.1.11"
-        ;;
-      pi-secondary|kir-pi-secondary)
-        TARGET_IP="192.168.1.12"
-        ;;
-      ott-pi-primary)
-        TARGET_IP="ott-pi-primary.local"
-        ;;
-      *)
-        # Try probing known nodes
-        echo -e "${YELLOW}No target specified. Probing known nodes...${NC}"
-        if ssh $SSH_OPTS -o BatchMode=yes -o ConnectTimeout=2 "${TARGET_USER}@192.168.1.11" "true" 2>/dev/null; then
-          TARGET_IP="192.168.1.11"
-        elif ssh $SSH_OPTS -o BatchMode=yes -o ConnectTimeout=2 "${TARGET_USER}@192.168.1.12" "true" 2>/dev/null; then
-          TARGET_IP="192.168.1.12"
-        else
-          echo -e "${RED}Error: No target node specified and neither 192.168.1.11 nor 192.168.1.12 is reachable.${NC}" >&2
-          echo -e "Usage: ./docker-rebuild.sh <IP_ADDRESS|HOST> [ACTION]" >&2
-          exit 1
-        fi
-        ;;
-    esac
+    if [ -n "$TARGET_HOST" ]; then
+      echo -e "${RED}Error: DNS/mDNS resolution failed for '${TARGET_HOST}'.${NC}" >&2
+      echo -e "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
+      exit 1
+    else
+      echo -e "${RED}Error: No target host or IP address specified.${NC}" >&2
+      echo -e "Usage: ./docker-rebuild.sh <IP_ADDRESS|HOST> [ACTION]" >&2
+      exit 1
+    fi
   fi
 
   # Step 1: Pre-Flight Connectivity & Remote Hostname Auto-Detection
@@ -287,32 +261,14 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     fi
   else
     if [ -z "$TARGET_HOST" ]; then
-      case "$TARGET_IP" in
-        192.168.1.11) TARGET_HOST="kir-pi-primary" ;;
-        192.168.1.12) TARGET_HOST="kir-pi-secondary" ;;
-        *)
-          echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
-          echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh kir-pi-primary boot $TARGET_IP)" >&2
-          exit 1
-          ;;
-      esac
+      echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
+      echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh <CONFIG_NAME> boot $TARGET_IP)" >&2
+      exit 1
     fi
   fi
 else
   # For local-only actions (build-only, image)
-  if [ -z "$TARGET_HOST" ]; then
-    if [ -n "$TARGET_IP" ]; then
-      case "$TARGET_IP" in
-        192.168.1.11) TARGET_HOST="kir-pi-primary" ;;
-        192.168.1.12) TARGET_HOST="kir-pi-secondary" ;;
-        *)
-          # Quick attempt to query remote host if available
-          TARGET_HOST=$(ssh $SSH_OPTS -o BatchMode=yes -o ConnectTimeout=2 "${TARGET_USER}@${TARGET_IP}" "cat /proc/sys/kernel/hostname 2>/dev/null || hostname" 2>/dev/null | tr -d '\r\n[:space:]' || true)
-          ;;
-      esac
-    fi
-    TARGET_HOST="${TARGET_HOST:-pi-primary}"
-  fi
+  TARGET_HOST="${TARGET_HOST:-kir-pi-primary}"
 
   echo -e "${BLUE}${BOLD}================================================================${NC}"
   echo -e "${BLUE}${BOLD}   Raspberry Pi NixOS Host Builder (Docker)                      ${NC}"
