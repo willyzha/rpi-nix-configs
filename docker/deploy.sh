@@ -257,8 +257,8 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
   else
     if [ -z "$TARGET_HOST" ]; then
       case "$TARGET_IP" in
-        192.168.1.11) TARGET_HOST="pi-primary" ;;
-        192.168.1.12) TARGET_HOST="pi-secondary" ;;
+        192.168.1.11) TARGET_HOST="kir-pi-primary" ;;
+        192.168.1.12) TARGET_HOST="kir-pi-secondary" ;;
         *)
           echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
           echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh pi-primary boot $TARGET_IP)" >&2
@@ -272,8 +272,8 @@ else
   if [ -z "$TARGET_HOST" ]; then
     if [ -n "$TARGET_IP" ]; then
       case "$TARGET_IP" in
-        192.168.1.11) TARGET_HOST="pi-primary" ;;
-        192.168.1.12) TARGET_HOST="pi-secondary" ;;
+        192.168.1.11) TARGET_HOST="kir-pi-primary" ;;
+        192.168.1.12) TARGET_HOST="kir-pi-secondary" ;;
         *)
           # Quick attempt to query remote host if available
           TARGET_HOST=$(ssh $SSH_OPTS -o BatchMode=yes -o ConnectTimeout=2 "${TARGET_USER}@${TARGET_IP}" "cat /proc/sys/kernel/hostname 2>/dev/null || hostname" 2>/dev/null | tr -d '\r\n[:space:]' || true)
@@ -296,8 +296,8 @@ fi
 if ! nix eval --extra-experimental-features "nix-command flakes" "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.networking.hostName" >/dev/null 2>&1; then
   echo -e "${RED}Error: NixOS configuration '${TARGET_HOST}' not found in flake (${FLAKE_REF})!${NC}" >&2
   echo -e "  Available configurations in flake:" >&2
-  echo -e "    - pi-primary" >&2
-  echo -e "    - pi-secondary" >&2
+  echo -e "    - kir-pi-primary" >&2
+  echo -e "    - kir-pi-secondary" >&2
   exit 1
 fi
 

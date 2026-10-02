@@ -11,11 +11,11 @@
     in {
       nixosConfigurations = {
         # Primary Pi (192.168.1.11 - Pi 3B)
-        pi-primary = nixpkgs.lib.nixosSystem {
+        kir-pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
             ./modules/sd-image.nix
-            ./hosts/pi-primary/default.nix
+            ./hosts/kir-pi-primary/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
             })
@@ -23,11 +23,11 @@
         };
 
         # Secondary Pi (192.168.1.12 - Pi 3B)
-        pi-secondary = nixpkgs.lib.nixosSystem {
+        kir-pi-secondary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
             ./modules/sd-image.nix
-            ./hosts/pi-secondary/default.nix
+            ./hosts/kir-pi-secondary/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
             })
@@ -35,11 +35,11 @@
         };
 
         # Remote Pi (Ottawa)
-        pi-remote = nixpkgs.lib.nixosSystem {
+        ott-pi = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
             ./modules/sd-image.nix
-            ./hosts/pi-remote/default.nix
+            ./hosts/ott-pi/default.nix
             ({ ... }: {
               system.configurationRevision = self.rev or self.dirtyRev or null;
             })
@@ -49,9 +49,9 @@
 
       # Direct image package shortcuts for easy building
       packages.${system} = {
-        pi-primary-image = self.nixosConfigurations.pi-primary.config.system.build.sdImage;
-        pi-secondary-image = self.nixosConfigurations.pi-secondary.config.system.build.sdImage;
-        pi-remote-image = self.nixosConfigurations.pi-remote.config.system.build.sdImage;
+        kir-pi-primary-image = self.nixosConfigurations.kir-pi-primary.config.system.build.sdImage;
+        kir-pi-secondary-image = self.nixosConfigurations.kir-pi-secondary.config.system.build.sdImage;
+        ott-pi-image = self.nixosConfigurations.ott-pi.config.system.build.sdImage;
       };
     };
 }
