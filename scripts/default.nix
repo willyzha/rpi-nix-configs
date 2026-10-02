@@ -3,6 +3,7 @@
 {
   # Aggregate all modular maintenance and setup scripts into system packages
   environment.systemPackages = [
+    (import ./rpi-onboard.nix { inherit pkgs; })
     (import ./rpi-set-password.nix { inherit pkgs; })
     (import ./rpi-set-nut-password.nix { inherit pkgs; })
     (import ./rpi-set-keepalived-auth.nix { inherit pkgs; })
