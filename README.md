@@ -50,7 +50,6 @@ Traditional systems write continuously to the SD card (systemd journals, logrota
 This setup prevents wear while preserving convenience:
 
 ```
-┌────────────────────────────────────────────────────────┐
 ┌────────────────────────────────────────────────────────────┐
 │                        RAM (Volatile)                      │
 │  ├─ /tmp (tmpfs, 256MB)        <── Temporary files         │
