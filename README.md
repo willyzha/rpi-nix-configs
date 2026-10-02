@@ -8,38 +8,38 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 
 ### `kir-pi-primary` (`192.168.1.11` - Raspberry Pi 3 Model B)
 - **Native Services**:
-  - **AdGuard Home**: Local DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
-  - **Tailscale**: Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
-  - **Keepalived**: VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
-  - **NUT Server**: Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
-  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
-  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
+  - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Local DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
+  - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
+  - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
+  - [**NUT Server**](https://networkupstools.org/): Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
+  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
+  - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
-  - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
-  - **UPSWake**: Wake-on-LAN service polling NUT server status.
+  - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
+  - [**UPSWake**](https://github.com/TheDarthMole/UPSWake): Wake-on-LAN service polling NUT server status.
 
 ### `kir-pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
 - **Native Services**:
-  - **WireGuard**: VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
-  - **AdGuard Home**: Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
-  - **Keepalived**: VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
-  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
-  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
+  - [**WireGuard**](https://www.wireguard.com/): VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
+  - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
+  - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
+  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
+  - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:
-  - **SWAG**: Failover reverse proxy (Port `443`).
+  - [**SWAG**](https://github.com/linuxserver/docker-swag): Failover reverse proxy (Port `443`).
 
 ### `ott-pi-primary` (Remote Node - Raspberry Pi 4 Model B)
 - **Native Services**:
-  - **Eclipse Mosquitto**: Native local MQTT Broker (Port `1883`).
-  - **Tailscale**: Mesh VPN with exit node support.
-  - **WireGuard**: Kernel VPN integration.
-  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, and service health.
-  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
+  - [**Eclipse Mosquitto**](https://mosquitto.org/): Native local MQTT Broker (Port `1883`).
+  - [**Tailscale**](https://tailscale.com/): Mesh VPN with exit node support.
+  - [**WireGuard**](https://www.wireguard.com/): Kernel VPN integration.
+  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, and service health.
+  - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
-  - **SWAG**: Nginx reverse proxy with automated SSL certificate generation (Port `443`).
-  - **Home Assistant Matter Hub**: Matter translation layer connecting custom entities to Home Assistant.
-  - **Wyze Bridge**: Bridges Wyze cameras to WebRTC/RTSP local network streams.
-  - **Room Assistant**: Room-level presence tracking.
+  - [**SWAG**](https://github.com/linuxserver/docker-swag): Nginx reverse proxy with automated SSL certificate generation (Port `443`).
+  - [**Home Assistant Matter Hub**](https://github.com/t0bst4r/home-assistant-matter-hub): Matter translation layer connecting custom entities to Home Assistant.
+  - [**Wyze Bridge**](https://github.com/mrlt8/docker-wyze-bridge): Bridges Wyze cameras to WebRTC/RTSP local network streams.
+  - [**Room Assistant**](https://github.com/mKeRix/room-assistant): Room-level presence tracking.
 
 ---
 
@@ -134,49 +134,6 @@ docker run --rm --net=host \
 ```
 
 ---
-
-## Cluster Monitoring & Home Assistant Integration
-
-Both nodes run a lightweight native telemetry service (**`rpi-mqtt-monitor`**) that reports health and system performance metrics to your MQTT broker every 30 seconds using **Home Assistant MQTT Auto-Discovery**.
-
-> [!TIP]
-> **Zero YAML Required in Home Assistant**: Both nodes automatically register themselves as clean devices (**`Pi Primary`** and **`Pi Secondary`**) with all sensors grouped neatly under each device card.
-
-### Monitored Sensors
-
-| Sensor | Entity ID | Device Class / Unit | Description |
-| :--- | :--- | :--- | :--- |
-| **CPU Usage** | `sensor.<node>_cpu_usage` | `%` (measurement) | Accurate CPU load percentage calculated from `/proc/stat` |
-| **CPU Temperature** | `sensor.<node>_cpu_temperature` | `temperature` (`°C`) | Live SoC thermal reading from `/sys/class/thermal` |
-| **Memory Usage** | `sensor.<node>_memory_usage` | `%` (measurement) | RAM consumption percentage from `/proc/meminfo` |
-| **Memory Used** | `sensor.<node>_memory_used` | `data_size` (`MB`) | Physical RAM utilized in megabytes |
-| **Last Boot** | `sensor.<node>_last_boot` | `timestamp` | UTC boot timestamp formatted to relative uptime |
-| **VRRP Status** | `sensor.<node>_vrrp_status` | Text (`MASTER` / `BACKUP`) | Keepalived failover state with `virtual_ip` attribute |
-| **Services Health** | `sensor.<node>_services_health` | Text (`HEALTHY (X/X active)`) | Cluster daemon health aggregation via `rpi-services-status` |
-| **Update Available** | `binary_sensor.<node>_update_available` / `update.<node>_update` | `update` | Tracks GitHub repo updates via `rpi-check-update` (cached 12h) |
-
-### Availability & Offline Detection
-
-The monitor publishes availability to `rpi/<node>/availability` (`online` / `offline`). In addition, each sensor is configured with `expire_after: 180`, ensuring that if a node suffers sudden power loss or network disruption, Home Assistant immediately transitions its sensors to `Unavailable` within 3 minutes while tolerating transient broker restarts without flapping.
-
-### MQTT Broker Configuration (`/persist/secrets/mqtt.env`)
-
-Broker connection details are kept strictly out of Git and stored in persistent storage on each Pi (`/persist/secrets/mqtt.env`):
-
-```bash
-MQTT_HOST=192.168.1.X
-MQTT_PORT=1883
-MQTT_USER=
-MQTT_PASS=
-```
-
-To update or configure broker credentials at any time:
-```bash
-# On either Pi:
-sudo nano /persist/secrets/mqtt.env
-sudo rpi-persist-save secrets
-sudo systemctl restart rpi-mqtt-monitor
-```
 
 ---
 
