@@ -83,47 +83,6 @@ This setup prevents wear while preserving convenience:
 
 ---
 
-## Directory Structure
-
-```
-rpi-nix-configs/
-├── .env.example                      # Configuration template for Docker deployments
-├── .gitignore                        # Prevents secrets and build artifacts from git
-├── docker-compose.yml                # Host-side Docker Compose setup for building & deploying
-├── docker-rebuild.sh                 # Convenient 1-line rebuild wrapper script
-├── flake.nix                         # Flake entry point (kir-pi-primary & kir-pi-secondary)
-├── docker/
-│   ├── Dockerfile                    # Containerized Nix build & deployment environment
-│   ├── deploy.sh                     # Automated lifecycle script (RW remount, build, copy, switch, RO remount, reboot)
-│   └── nix.conf                      # Optimized Nix config for cross-architecture builds & binary caching
-├── modules/
-│   ├── sd-protection.nix             # Read-only root, OverlayFS, tmpfs mounts, rpi-persist-save, rpi-rebuild
-│   ├── common.nix                    # Common base (user pi, ssh keys, zram, VMAC sysctl, timezone, tools)
-│   ├── mqtt-monitor.nix              # Native Home Assistant MQTT Auto-Discovery & telemetry reporter
-│   ├── hardware-rpi3.nix             # RPi 3B kernel and boot config
-│   ├── docker.nix                    # Docker daemon tuning & native ext4 data root
-│   └── sd-image.nix                  # SD card image packaging with zstd compression
-├── scripts/
-│   ├── default.nix                   # Aggregates maintenance scripts into systemPackages
-│   ├── rpi-rebuild.nix               # Automated host-aware rebuild lifecycle script
-│   ├── rpi-persist-save.nix          # Overlay delta sync tool to physical SD card
-│   ├── rpi-check-update.nix          # Instant git-based update checker
-│   ├── rpi-vrrp-status.nix           # Live Keepalived VRRP role status script
-│   ├── rpi-services-status.nix       # Real-time service health aggregation script
-│   ├── rpi-set-password.nix          # User password setup wizard
-│   ├── rpi-set-nut-password.nix      # NUT UPS monitor password setup wizard
-│   ├── rpi-set-swag.nix              # SWAG reverse proxy setup wizard
-│   ├── rpi-set-keepalived-auth.nix   # Keepalived authentication setup wizard
-│   ├── rpi-set-restic-password.nix   # Restic backup password setup wizard
-│   └── rpi-init-secrets.nix          # Secret directory initializer
-└── hosts/
-    ├── kir-pi-primary/
-    │   └── default.nix               # AdGuard Home, Tailscale, NUT, Keepalived, MQTT Monitor, SWAG
-    └── kir-pi-secondary/
-        └── default.nix               # WireGuard, AdGuard Home, Keepalived, MQTT Monitor, SWAG
-```
-
----
 
 ## SD Card Partitioning Layout
 
