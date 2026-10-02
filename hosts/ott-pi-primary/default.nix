@@ -10,7 +10,7 @@
   ];
 
   networking = {
-    hostName = "ott-pi";
+    hostName = "ott-pi-primary";
   };
 
   # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@
   # ---------------------------------------------------------------------------
   services.restic.backups.persist = {
     initialize = true;
-    repository = "rclone:dropbox:backups/ott-pi";
+    repository = "rclone:dropbox:backups/ott-pi-primary";
     rcloneConfigFile = "/persist/secrets/rclone.conf";
     passwordFile = "/persist/secrets/restic-password";
     paths = [

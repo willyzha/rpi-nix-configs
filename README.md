@@ -6,7 +6,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 
 ## Hosts & Services Architecture
 
-### `pi-primary` (`192.168.1.11` - Raspberry Pi 3 Model B)
+### `kir-pi-primary` (`192.168.1.11` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - **AdGuard Home**: Local DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - **Tailscale**: Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
@@ -18,7 +18,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - **SWAG**: Reverse proxy with automated SSL certificate generation (Port `443`).
   - **UPSWake**: Wake-on-LAN service polling NUT server status.
 
-### `pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
+### `kir-pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - **WireGuard**: VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
   - **AdGuard Home**: Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
@@ -79,7 +79,7 @@ rpi-nix-configs/
 ├── .gitignore                        # Prevents secrets and build artifacts from git
 ├── docker-compose.yml                # Host-side Docker Compose setup for building & deploying
 ├── docker-rebuild.sh                 # Convenient 1-line rebuild wrapper script
-├── flake.nix                         # Flake entry point (pi-primary & pi-secondary)
+├── flake.nix                         # Flake entry point (kir-pi-primary & kir-pi-secondary)
 ├── docker/
 │   ├── Dockerfile                    # Containerized Nix build & deployment environment
 │   ├── deploy.sh                     # Automated lifecycle script (RW remount, build, copy, switch, RO remount, reboot)
@@ -105,9 +105,9 @@ rpi-nix-configs/
 │   ├── rpi-set-restic-password.nix   # Restic backup password setup wizard
 │   └── rpi-init-secrets.nix          # Secret directory initializer
 └── hosts/
-    ├── pi-primary/
+    ├── kir-pi-primary/
     │   └── default.nix               # AdGuard Home, Tailscale, NUT, Keepalived, MQTT Monitor, SWAG
-    └── pi-secondary/
+    └── kir-pi-secondary/
         └── default.nix               # WireGuard, AdGuard Home, Keepalived, MQTT Monitor, SWAG
 ```
 
@@ -138,18 +138,18 @@ To solve this, a complete **Docker Compose environment** is included in the repo
 
 #### Quick Start (Auto-Detect by IP)
 
-Simply pass the IP address of the target Pi. The script queries the node over SSH, auto-detects whether it is `pi-primary` or `pi-secondary`, builds the appropriate configuration on your host, transfers the delta, and cleanly reboots it into the new generation:
+Simply pass the IP address of the target Pi. The script queries the node over SSH, auto-detects whether it is `kir-pi-primary` or `kir-pi-secondary`, builds the appropriate configuration on your host, transfers the delta, and cleanly reboots it into the new generation:
 
 ```bash
-# Update secondary Pi (auto-detects pi-secondary):
+# Update secondary Pi (auto-detects kir-pi-secondary):
 ./docker-rebuild.sh 192.168.1.12
 
-# Update primary Pi (auto-detects pi-primary):
+# Update primary Pi (auto-detects kir-pi-primary):
 ./docker-rebuild.sh 192.168.1.11
 
 # Or use hostname / compose directly:
-./docker-rebuild.sh pi-primary
-./docker-rebuild.sh pi-secondary
+./docker-rebuild.sh kir-pi-primary
+./docker-rebuild.sh kir-pi-secondary
 ```
 
 #### Common Commands & Options
@@ -159,8 +159,8 @@ Simply pass the IP address of the target Pi. The script queries the node over SS
 | `./docker-rebuild.sh 192.168.1.12` | **(Default: `boot`)** Auto-detects node from IP, builds on host, copies closure, reboots node. |
 | `./docker-rebuild.sh 192.168.1.12 switch` | Auto-detects node from IP, builds on host, and switches running services immediately (no reboot). |
 | `./docker-rebuild.sh 192.168.1.12 test` | Tests build and activates services temporarily without modifying bootloader. |
-| `./docker-rebuild.sh pi-primary build-only` | Verifies and builds the NixOS system locally in Docker without connecting to the Pi (~2s cached). |
-| `./docker-rebuild.sh pi-primary image` | Generates the bootable SD card image (`.img.zst`) in `./output/` for fresh SD card flashing. |
+| `./docker-rebuild.sh kir-pi-primary build-only` | Verifies and builds the NixOS system locally in Docker without connecting to the Pi (~2s cached). |
+| `./docker-rebuild.sh kir-pi-primary image` | Generates the bootable SD card image (`.img.zst`) in `./output/` for fresh SD card flashing. |
 | `docker compose run --rm shell` | Drops into an interactive bash shell in the Nix container for debugging. |
 
 #### 🚀 Zero-Repo Deployment (Update without Git Checkout)
@@ -196,7 +196,7 @@ docker run --rm --net=host \
 If your host computer is unavailable, you can still run the rebuild directly on the Pi via SSH:
 
 ```bash
-# On either Pi (automatically detects pi-primary vs pi-secondary):
+# On either Pi (automatically detects kir-pi-primary vs kir-pi-secondary):
 sudo rpi-rebuild
 
 # Or remotely via SSH:
@@ -278,8 +278,8 @@ Initial setup is fully automated using flashable SD card images released directl
 1. **Download Image**:
    - Go to your repository's **Releases** tab on GitHub (or the **Actions** tab artifacts).
    - Download the image for your target node:
-     - `pi-primary-nixos.img.zst` (for `192.168.1.11`)
-     - `pi-secondary-nixos.img.zst` (for `192.168.1.12`)
+     - `kir-pi-primary-nixos.img.zst` (for `192.168.1.11`)
+     - `kir-pi-secondary-nixos.img.zst` (for `192.168.1.12`)
 2. **Burn to SD Card**:
    - Open **Raspberry Pi Imager** or **Balena Etcher**.
    - Select **Use Custom** -> choose the downloaded `.img.zst` file (Raspberry Pi Imager supports `.zst` directly).
@@ -295,8 +295,8 @@ Initial setup is fully automated using flashable SD card images released directl
 4. **SSH In**:
    - Connect immediately using your configured SSH key (via mDNS hostname or static IP):
      ```bash
-     ssh pi@pi-primary.local    # or ssh pi@192.168.1.11
-     ssh pi@pi-secondary.local  # or ssh pi@192.168.1.12
+     ssh pi@kir-pi-primary.local    # or ssh pi@192.168.1.11
+     ssh pi@kir-pi-secondary.local  # or ssh pi@192.168.1.12
      ```
 5. **Configure Secrets**:
    Set up your secrets under `/persist/secrets/` using the built-in helper scripts:
@@ -312,7 +312,7 @@ Initial setup is fully automated using flashable SD card images released directl
      ```
      *(Automatically handles the read-write remount and writes to disk. Survives all future reboots and rebuilds).*
 
-   - **NUT Server Monitoring Password** (for `pi-primary`, used by `upswake` and `upsd`):
+   - **NUT Server Monitoring Password** (for `kir-pi-primary`, used by `upswake` and `upsd`):
      ```bash
      sudo rpi-set-nut-password
      ```
@@ -366,11 +366,11 @@ Initial setup is fully automated using flashable SD card images released directl
 
    - **Restart Affected Services & Test Backup**:
      ```bash
-     # On pi-primary:
+     # On kir-pi-primary:
      sudo systemctl restart keepalived
      sudo systemctl start restic-backups-persist.service
 
-     # On pi-secondary:
+     # On kir-pi-secondary:
      sudo systemctl restart keepalived wireguard-wg0
      sudo systemctl start restic-backups-persist.service
 
@@ -378,20 +378,20 @@ Initial setup is fully automated using flashable SD card images released directl
      sudo journalctl -u restic-backups-persist.service -f
 
      # View snapshots:
-     sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
+     sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
      ```
 
-6. **Enable Tailscale (on `pi-primary`)**:
+6. **Enable Tailscale (on `kir-pi-primary`)**:
    Authenticate Tailscale as a subnet router and exit node:
    ```bash
    sudo tailscale up --advertise-exit-node --accept-routes
    ```
    Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
 
-7. **Configure AdGuard Home (on `pi-primary` and `pi-secondary`)**:
+7. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
    AdGuard Home runs natively on both nodes with persistent settings stored in `/persist/var/lib/AdGuardHome/`:
-   - `pi-primary` Web interface: `http://192.168.1.11:3000` (or `http://pi-primary.local:3000`)
-   - `pi-secondary` Web interface: `http://192.168.1.12:3000` (or `http://pi-secondary.local:3000`)
+   - `kir-pi-primary` Web interface: `http://192.168.1.11:3000` (or `http://kir-pi-primary.local:3000`)
+   - `kir-pi-secondary` Web interface: `http://192.168.1.12:3000` (or `http://kir-pi-secondary.local:3000`)
    - Cluster VIP Web interface: `http://192.168.1.9:3000`
    - DNS server port: `53` (answers queries on node IPs and the shared VIP `192.168.1.9`).
 
@@ -402,4 +402,4 @@ Initial setup is fully automated using flashable SD card images released directl
 
 Images are built automatically by GitHub Actions:
 - **On Tag**: Push any version tag (e.g. `git tag v1.0.0 && git push --tags`) to trigger a build and publish a GitHub Release with the flashable images and checksums.
-- **On Demand**: Go to the **Actions** tab in GitHub -> select **Build & Release Flashable SD Images** -> click **Run workflow** -> choose `pi-primary`, `pi-secondary`, or `both`.
+- **On Demand**: Go to the **Actions** tab in GitHub -> select **Build & Release Flashable SD Images** -> click **Run workflow** -> choose `kir-pi-primary`, `kir-pi-secondary`, or `both`.
