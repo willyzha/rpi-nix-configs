@@ -107,15 +107,17 @@ Building directly on a Raspberry Pi can trigger OOM crashes and heavy SD card sw
 
 If you have cloned this repository, use the convenient wrapper script:
 
+> **Note:** Do **not** prefix the hostname with `pi@` (e.g. run `./docker-rebuild.sh kir-pi-primary`, not `pi@kir-pi-primary`). The deployment script automatically connects as `root` via SSH using your host's keys in `~/.ssh` to build and activate system profiles.
+
 <details>
 <summary><b>Deploy to <code>kir-pi-primary</code></b></summary>
 
 ```bash
 # Auto-detect, build, and deploy (reboots when done):
-./docker-rebuild.sh kir-pi-primary.local
+./docker-rebuild.sh kir-pi-primary
 
 # Switch services immediately without rebooting:
-./docker-rebuild.sh kir-pi-primary.local switch
+./docker-rebuild.sh kir-pi-primary switch
 ```
 
 </details>
@@ -125,10 +127,10 @@ If you have cloned this repository, use the convenient wrapper script:
 
 ```bash
 # Auto-detect, build, and deploy (reboots when done):
-./docker-rebuild.sh kir-pi-secondary.local
+./docker-rebuild.sh kir-pi-secondary
 
 # Switch services immediately without rebooting:
-./docker-rebuild.sh kir-pi-secondary.local switch
+./docker-rebuild.sh kir-pi-secondary switch
 ```
 
 </details>
@@ -138,10 +140,10 @@ If you have cloned this repository, use the convenient wrapper script:
 
 ```bash
 # Auto-detect, build, and deploy (reboots when done):
-./docker-rebuild.sh ott-pi-primary.local
+./docker-rebuild.sh ott-pi-primary
 
 # Switch services immediately without rebooting:
-./docker-rebuild.sh ott-pi-primary.local switch
+./docker-rebuild.sh ott-pi-primary switch
 ```
 
 </details>
@@ -161,7 +163,7 @@ docker run --rm --net=host \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
   -v /tmp/rpi-nix-cache:/root/.cache \
-  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-primary.local
+  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-primary switch
 ```
 
 </details>
@@ -175,7 +177,7 @@ docker run --rm --net=host \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
   -v /tmp/rpi-nix-cache:/root/.cache \
-  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary.local
+  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary switch
 ```
 
 </details>
@@ -189,7 +191,7 @@ docker run --rm --net=host \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
   -v /tmp/rpi-nix-cache:/root/.cache \
-  ghcr.io/willyzha/rpi-nix-builder:latest ott-pi-primary.local
+  ghcr.io/willyzha/rpi-nix-builder:latest ott-pi-primary switch
 ```
 
 </details>
