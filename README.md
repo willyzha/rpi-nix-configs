@@ -302,7 +302,6 @@ Initial setup is fully automated using flashable SD card images released directl
    You can view your ad-blocking stats and dashboards immediately at:
    - `kir-pi-primary` Dashboard: `http://kir-pi-primary.local:3000`
    - `kir-pi-secondary` Dashboard: `http://kir-pi-secondary.local:3000`
-   - Cluster VIP Dashboard: `http://192.168.1.9:3000`
 
 
 ---
