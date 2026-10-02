@@ -28,6 +28,19 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 - **Docker Containers**:
   - **SWAG**: Failover reverse proxy (Port `443`).
 
+### `ott-pi-primary` (Remote Node - Raspberry Pi 4 Model B)
+- **Native Services**:
+  - **Eclipse Mosquitto**: Native local MQTT Broker (Port `1883`).
+  - **Tailscale**: Mesh VPN with exit node support.
+  - **WireGuard**: Kernel VPN integration.
+  - **MQTT Telemetry Monitor**: Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, and service health.
+  - **Restic Backup**: Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
+- **Docker Containers**:
+  - **SWAG**: Nginx reverse proxy with automated SSL certificate generation (Port `443`).
+  - **Home Assistant Matter Hub**: Matter translation layer connecting custom entities to Home Assistant.
+  - **Wyze Bridge**: Bridges Wyze cameras to WebRTC/RTSP local network streams.
+  - **Room Assistant**: Room-level presence tracking.
+
 ---
 
 ## SD Card Zero-Wear Architecture
@@ -280,6 +293,7 @@ Initial setup is fully automated using flashable SD card images released directl
    - Download the image for your target node:
      - `kir-pi-primary-nixos.img.zst` (for `192.168.1.11`)
      - `kir-pi-secondary-nixos.img.zst` (for `192.168.1.12`)
+     - `ott-pi-primary-nixos.img.zst` (for remote site)
 2. **Burn to SD Card**:
    - Open **Raspberry Pi Imager** or **Balena Etcher**.
    - Select **Use Custom** -> choose the downloaded `.img.zst` file (Raspberry Pi Imager supports `.zst` directly).
@@ -297,6 +311,7 @@ Initial setup is fully automated using flashable SD card images released directl
      ```bash
      ssh pi@kir-pi-primary.local    # or ssh pi@192.168.1.11
      ssh pi@kir-pi-secondary.local  # or ssh pi@192.168.1.12
+     ssh pi@ott-pi-primary.local
      ```
 5. **Configure Secrets**:
    Set up your secrets under `/persist/secrets/` using the built-in helper scripts:
@@ -402,4 +417,4 @@ Initial setup is fully automated using flashable SD card images released directl
 
 Images are built automatically by GitHub Actions:
 - **On Tag**: Push any version tag (e.g. `git tag v1.0.0 && git push --tags`) to trigger a build and publish a GitHub Release with the flashable images and checksums.
-- **On Demand**: Go to the **Actions** tab in GitHub -> select **Build & Release Flashable SD Images** -> click **Run workflow** -> choose `kir-pi-primary`, `kir-pi-secondary`, or `both`.
+- **On Demand**: Go to the **Actions** tab in GitHub -> select **Build & Release Flashable SD Images** -> click **Run workflow** -> choose `kir-pi-primary`, `kir-pi-secondary`, `ott-pi-primary`, or `all`.
