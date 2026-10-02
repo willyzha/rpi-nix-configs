@@ -76,7 +76,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:cpu-64-bit",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -93,7 +93,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -111,7 +111,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -128,7 +128,7 @@ EOF
   "device_class": "temperature",
   "state_class": "measurement",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -144,7 +144,7 @@ EOF
   "device_class": "timestamp",
   "icon": "mdi:clock-outline",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -162,7 +162,7 @@ EOF
   "entity_category": "diagnostic",
   "icon": "mdi:cloud-check",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -177,7 +177,7 @@ EOF
   "value_template": "{{ value_json.vrrp_status }}",
   "icon": "mdi:server-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "json_attributes_topic": "${stateTopic}",
   "json_attributes_template": "{{ {'virtual_ip': value_json.vrrp_vip} | tojson }}",
   "device": $DEVICE_JSON
@@ -194,7 +194,7 @@ EOF
   "value_template": "{{ value_json.services_health }}",
   "icon": "mdi:check-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -213,7 +213,7 @@ EOF
   "release_url": "https://github.com/willyzha/rpi-nix-configs/commits/main",
   "entity_picture": "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/logo/nix-snowflake.svg",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "device": $DEVICE_JSON
 }
 EOF
@@ -230,7 +230,7 @@ EOF
   "payload_off": "OFF",
   "device_class": "update",
   "availability_topic": "${availTopic}",
-  "expire_after": 180,
+  "expire_after": 60,
   "json_attributes_topic": "${stateTopic}",
   "json_attributes_template": "{{ {'installed_version': value_json.installed_version, 'latest_version': value_json.latest_version, 'last_checked': value_json.update_last_checked} | tojson }}",
   "device": $DEVICE_JSON
