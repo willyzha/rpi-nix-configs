@@ -106,22 +106,67 @@ Building directly on a Raspberry Pi can trigger OOM crashes and heavy SD card sw
 
 If you have cloned this repository, use the convenient wrapper script:
 
-```bash
-# Update secondary Pi (auto-detects kir-pi-secondary):
-./docker-rebuild.sh kir-pi-secondary.local
+<details>
+<summary><b>Deploy to <code>kir-pi-primary</code></b></summary>
 
-# Update primary Pi (auto-detects kir-pi-primary):
+```bash
+# Auto-detect, build, and deploy (reboots when done):
 ./docker-rebuild.sh kir-pi-primary.local
 
 # Switch services immediately without rebooting:
 ./docker-rebuild.sh kir-pi-primary.local switch
 ```
 
+</details>
+
+<details>
+<summary><b>Deploy to <code>kir-pi-secondary</code></b></summary>
+
+```bash
+# Auto-detect, build, and deploy (reboots when done):
+./docker-rebuild.sh kir-pi-secondary.local
+
+# Switch services immediately without rebooting:
+./docker-rebuild.sh kir-pi-secondary.local switch
+```
+
+</details>
+
+<details>
+<summary><b>Deploy to <code>ott-pi-primary</code></b></summary>
+
+```bash
+# Auto-detect, build, and deploy (reboots when done):
+./docker-rebuild.sh ott-pi-primary.local
+
+# Switch services immediately without rebooting:
+./docker-rebuild.sh ott-pi-primary.local switch
+```
+
+</details>
+
 ### Method 2: Zero-Repo Deployment
 
 You do **not** need to clone this repository to deploy updates! By using `docker run` directly, the container automatically pulls the latest `main` branch configuration straight from GitHub. 
 
 *(Note: The `/tmp/rpi-nix-store` and `/tmp/rpi-nix-cache` paths bind-mount to your host's temporary directory. This prevents permanent storage bloat on your machine, but means the cache will be cleared when your host reboots. If your host's `/tmp` is a RAM-disk, ensure you have at least 4GB of free RAM to hold the Nix build closure!)*
+
+<details>
+<summary><b>Deploy to <code>kir-pi-primary</code></b></summary>
+
+```bash
+docker run --rm --net=host \
+  -v ~/.ssh:/root/.ssh:ro \
+  -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
+  -v /tmp/rpi-nix-store:/nix \
+  -v /tmp/rpi-nix-cache:/root/.cache \
+  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-primary.local
+```
+
+</details>
+
+<details>
+<summary><b>Deploy to <code>kir-pi-secondary</code></b></summary>
 
 ```bash
 docker run --rm --net=host \
@@ -131,6 +176,22 @@ docker run --rm --net=host \
   -v /tmp/rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary.local
 ```
+
+</details>
+
+<details>
+<summary><b>Deploy to <code>ott-pi-primary</code></b></summary>
+
+```bash
+docker run --rm --net=host \
+  -v ~/.ssh:/root/.ssh:ro \
+  -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
+  -v /tmp/rpi-nix-store:/nix \
+  -v /tmp/rpi-nix-cache:/root/.cache \
+  ghcr.io/willyzha/rpi-nix-builder:latest ott-pi-primary.local
+```
+
+</details>
 
 ---
 
