@@ -6,6 +6,7 @@
     ../../modules/sd-protection.nix
     ../../modules/hardware-rpi3.nix # Assuming Pi 3 or 4; adapt if necessary
     ../../modules/docker.nix
+    ../../modules/mqtt-monitor.nix
   ];
 
   networking = {
