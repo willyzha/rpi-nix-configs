@@ -291,7 +291,7 @@ Initial setup is fully automated using flashable SD card images released directl
    <summary><b>Enable on <code>ott-pi-primary</code></b> (Exit Node)</summary>
 
    ```bash
-   sudo tailscale up --advertise-exit-node
+   sudo tailscale up --advertise-exit-node --accept-routes
    ```
 
    </details>
