@@ -6,7 +6,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 
 ## Hosts & Services Architecture
 
-### `kir-pi-primary` (`192.168.1.11` - Raspberry Pi 3 Model B)
+### `kir-pi-primary` (`kir-pi-primary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Local DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
@@ -18,7 +18,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
   - [**UPSWake**](https://github.com/TheDarthMole/UPSWake): Wake-on-LAN service polling NUT server status.
 
-### `kir-pi-secondary` (`192.168.1.12` - Raspberry Pi 3 Model B)
+### `kir-pi-secondary` (`kir-pi-secondary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - [**WireGuard**](https://www.wireguard.com/): VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
@@ -109,13 +109,13 @@ If you have cloned this repository, use the convenient wrapper script:
 
 ```bash
 # Update secondary Pi (auto-detects kir-pi-secondary):
-./docker-rebuild.sh 192.168.1.12
+./docker-rebuild.sh kir-pi-secondary.local
 
 # Update primary Pi (auto-detects kir-pi-primary):
-./docker-rebuild.sh 192.168.1.11
+./docker-rebuild.sh kir-pi-primary.local
 
 # Switch services immediately without rebooting:
-./docker-rebuild.sh 192.168.1.11 switch
+./docker-rebuild.sh kir-pi-primary.local switch
 ```
 
 ### Method 2: Zero-Repo Deployment
@@ -130,7 +130,7 @@ docker run --rm --net=host \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
   -v /tmp/rpi-nix-cache:/root/.cache \
-  ghcr.io/willyzha/rpi-nix-builder:latest 192.168.1.12
+  ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary.local
 ```
 
 ---
@@ -146,8 +146,8 @@ Initial setup is fully automated using flashable SD card images released directl
 1. **Download Image**:
    - Go to your repository's **Releases** tab on GitHub (or the **Actions** tab artifacts).
    - Download the image for your target node:
-     - `kir-pi-primary-nixos.img.zst` (for `192.168.1.11`)
-     - `kir-pi-secondary-nixos.img.zst` (for `192.168.1.12`)
+     - `kir-pi-primary-nixos.img.zst` (for `kir-pi-primary.local`)
+     - `kir-pi-secondary-nixos.img.zst` (for `kir-pi-secondary.local`)
      - `ott-pi-primary-nixos.img.zst` (for remote site)
 2. **Burn to SD Card**:
    - Open **Raspberry Pi Imager** or **Balena Etcher**.
@@ -164,8 +164,8 @@ Initial setup is fully automated using flashable SD card images released directl
 4. **SSH In**:
    - Connect immediately using your configured SSH key (via mDNS hostname or static IP):
      ```bash
-     ssh pi@kir-pi-primary.local    # or ssh pi@192.168.1.11
-     ssh pi@kir-pi-secondary.local  # or ssh pi@192.168.1.12
+     ssh pi@kir-pi-primary.local
+     ssh pi@kir-pi-secondary.local
      ssh pi@ott-pi-primary.local
      ```
 5. **Configure Secrets**:
@@ -260,8 +260,8 @@ Initial setup is fully automated using flashable SD card images released directl
 
 7. **Configure AdGuard Home (on `kir-pi-primary` and `kir-pi-secondary`)**:
    AdGuard Home runs natively on both nodes with persistent settings stored in `/persist/var/lib/AdGuardHome/`:
-   - `kir-pi-primary` Web interface: `http://192.168.1.11:3000` (or `http://kir-pi-primary.local:3000`)
-   - `kir-pi-secondary` Web interface: `http://192.168.1.12:3000` (or `http://kir-pi-secondary.local:3000`)
+   - `kir-pi-primary` Web interface: `http://kir-pi-primary.local:3000`
+   - `kir-pi-secondary` Web interface: `http://kir-pi-secondary.local:3000`
    - Cluster VIP Web interface: `http://192.168.1.9:3000`
    - DNS server port: `53` (answers queries on node IPs and the shared VIP `192.168.1.9`).
 

@@ -26,8 +26,8 @@ If your host computer is unavailable, you can still run the rebuild directly on 
 sudo rpi-rebuild
 
 # Or remotely via SSH:
-ssh pi@192.168.1.11 "sudo rpi-rebuild"
-ssh pi@192.168.1.12 "sudo rpi-rebuild"
+ssh pi@kir-pi-primary.local "sudo rpi-rebuild"
+ssh pi@kir-pi-secondary.local "sudo rpi-rebuild"
 ```
 
 The built-in `rpi-rebuild` helper script automatically handles the entire lifecycle:
