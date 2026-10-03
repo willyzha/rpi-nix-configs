@@ -57,5 +57,9 @@
         kir-pi-secondary-image = self.nixosConfigurations.kir-pi-secondary.config.system.build.sdImage;
         ott-pi-primary-image = self.nixosConfigurations.ott-pi-primary.config.system.build.sdImage;
       };
+
+      # Standard flake formatter for 'nix fmt'
+      formatter.aarch64-linux = nixpkgs.legacyPackages.aarch64-linux.nixpkgs-fmt;
+      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
     };
 }

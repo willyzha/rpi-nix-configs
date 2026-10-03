@@ -59,6 +59,20 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
       ssh)
         echo "etc/ssh"
         ;;
+      wireguard|wg)
+        echo "secrets/wireguard"
+        echo "secrets/wg0.conf"
+        ;;
+      matter-hub|ha-matter-hub)
+        echo "docker/ha-matter-hub"
+        echo "secrets/matter-hub.env"
+        ;;
+      roomassistant|room-assistant)
+        echo "docker/roomassistant/config"
+        ;;
+      wyze-bridge)
+        echo "secrets/wyze-bridge.env"
+        ;;
       *)
         T="''${T#/persist/}"
         T="''${T#/persist-raw/}"
