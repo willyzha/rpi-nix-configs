@@ -16,7 +16,14 @@ pkgs.writeShellScriptBin "rpi-check-update" ''
   fi
 
   # Query latest commit SHA directly via git wire protocol (instant ~0.3s, zero Nix overhead)
-  LATEST_REV=$(${pkgs.coreutils}/bin/timeout 15 ${pkgs.git}/bin/git ls-remote "$REPO_URL" HEAD 2>/dev/null | ${pkgs.coreutils}/bin/cut -f1 || echo "")
+  LATEST_REV=""
+  for _ in 1 2 3; do
+    LATEST_REV=$(${pkgs.coreutils}/bin/timeout 15 ${pkgs.git}/bin/git ls-remote "$REPO_URL" HEAD 2>/dev/null | ${pkgs.coreutils}/bin/cut -f1 || echo "")
+    if [ -n "$LATEST_REV" ]; then
+      break
+    fi
+    sleep 1
+  done
 
   if [ -z "$LATEST_REV" ]; then
     if [ "$JSON_OUTPUT" -eq 1 ]; then

@@ -329,10 +329,23 @@ EOF
       local cache_time=0
       local need_check=0
 
+      local cur_rev=""
+      if [ -f /run/current-system/configuration-revision ]; then
+        cur_rev=$(cat /run/current-system/configuration-revision | tr -d '\r\n[:space:]')
+      fi
+
       if [ -f "$UPDATE_CACHE" ]; then
         cache_time=$(head -n 1 "$UPDATE_CACHE" 2>/dev/null || echo 0)
         if ! [[ "$cache_time" =~ ^[0-9]+$ ]]; then
           cache_time=0
+        fi
+
+        # Invalidate cache if running system generation differs from cached generation
+        local cached_rev
+        cached_rev=$(tail -n +2 "$UPDATE_CACHE" 2>/dev/null | ${pkgs.jq}/bin/jq -r '.installed_revision // empty' 2>/dev/null || echo "")
+        if [ -n "$cur_rev" ] && [ -n "$cached_rev" ] && [ "$cur_rev" != "$cached_rev" ]; then
+          cache_time=0
+          rm -f "$UPDATE_CACHE"
         fi
       fi
 
@@ -355,10 +368,6 @@ EOF
         fi
       fi
 
-      local cur_rev="unknown"
-      if [ -f /run/current-system/configuration-revision ]; then
-        cur_rev=$(cat /run/current-system/configuration-revision | tr -d '\r\n[:space:]')
-      fi
       local cur_short="''${cur_rev:0:12}"
       [ -z "$cur_short" ] && cur_short="unknown"
 
@@ -382,8 +391,22 @@ EOF
     LOOP_COUNT=0
     BROKER_FAILED=0
     FETCHED_BACKUP=0
+    FETCHED_UPDATE=0
 
     while true; do
+      # Force immediate update check on power-up / boot once NTP is synchronized
+      if [ "$FETCHED_UPDATE" -eq 0 ]; then
+        if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
+          if command -v rpi-check-update >/dev/null 2>&1; then
+            echo "==> NTP synchronized. Performing initial startup update check..."
+            if rpi-check-update --json >/dev/null 2>&1; then
+              echo "==> Initial startup update check completed."
+              FETCHED_UPDATE=1
+            fi
+          fi
+        fi
+      fi
+
       # Restore last backup timestamp from remote once NTP is synced
       if [ ! -f /persist/var/cache/restic/last_success ] && [ "$FETCHED_BACKUP" -eq 0 ]; then
         if [ "$(timedatectl show -p NTPSynchronized --value)" = "yes" ]; then
@@ -544,8 +567,8 @@ in
 
   systemd.services.rpi-mqtt-monitor = {
     description = "Raspberry Pi MQTT Telemetry Monitor for Home Assistant";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
+    after = [ "network-online.target" "time-sync.target" ];
+    wants = [ "network-online.target" "time-sync.target" ];
     wantedBy = [ "multi-user.target" ];
     path = with pkgs; [
       gawk
