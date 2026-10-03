@@ -54,7 +54,7 @@
       unicastSrcIp = "192.168.1.11";
       unicastPeers = [ "192.168.1.12" ];
       virtualIps = [
-        { addr = "192.168.1.9/24"; }
+        { addr = "192.168.1.9/32"; }
       ];
       trackScripts = [ "check_swag" ];
       # Auth config loaded from persistent untracked secret file if present
