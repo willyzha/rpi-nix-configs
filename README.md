@@ -304,8 +304,10 @@ Initial setup is fully automated using flashable SD card images released directl
    <summary><b>Enable on <code>ott-pi-primary</code></b> (Exit Node)</summary>
 
    ```bash
-   sudo tailscale up --advertise-exit-node --accept-routes
+   sudo tailscale up --advertise-exit-node
    ```
+
+   > **Note:** Do not pass `--accept-routes` on `ott-pi-primary` if other nodes on your Tailnet advertise the `192.168.2.0/24` subnet, as Tailscale's routing policy table will intercept traffic destined for the local LAN.
 
    </details>
 
