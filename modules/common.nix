@@ -130,6 +130,7 @@
     settings = {
       PermitRootLogin = "prohibit-password";
       PasswordAuthentication = true;
+      UseDns = false;
     };
   };
 

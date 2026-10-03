@@ -10,6 +10,7 @@
 
   networking = {
     hostName = "ott-pi-primary";
+    firewall.checkReversePath = "loose";
   };
 
   # Ottawa local timezone
@@ -57,7 +58,13 @@
   # 2. Tailscale (Native)
   services.tailscale = {
     enable = true;
-    useRoutingFeatures = "server"; # Allow exit node and subnet router functionality
+    useRoutingFeatures = "both";
+    extraUpFlags = [
+      "--advertise-routes=192.168.2.0/24"
+      "--advertise-exit-node"
+      "--stateful-filtering=false"
+      "--accept-dns=false"
+    ];
   };
 
   # 3. WireGuard (Native)
