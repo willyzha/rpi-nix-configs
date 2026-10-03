@@ -235,21 +235,64 @@ Initial setup is fully automated using flashable SD card images released directl
      - Partitions and formats `/persist` as ext4.
      - Generates persistent SSH host keys and initializes directory structures.
      - Boots into zero-wear read-only mode.
-4. **SSH In**:
-   - Connect immediately using your configured SSH key (via mDNS hostname or static IP):
+4. **SSH In (Local Network)**:
+   - Connect using your configured SSH key (via mDNS hostname or local DHCP IP):
      ```bash
      ssh pi@kir-pi-primary.local
      ssh pi@kir-pi-secondary.local
      ssh pi@ott-pi-primary.local
      ```
-5. **Configure Secrets**:
+
+5. **Enable Tailscale & Persist State**:
+   Authenticate your node with Tailscale first to establish secure remote mesh networking. Open the displayed URL in your browser to approve the node in your Tailscale admin console.
+   
+   Once authenticated, run `sudo rpi-persist-save tailscale` to immediately commit your node's authentication state to the physical SD card so it permanently survives reboots!
+
+   <details>
+   <summary><b>Enable on <code>kir-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
+
+   ```bash
+   sudo tailscale up --advertise-exit-node --accept-routes
+   sudo rpi-persist-save tailscale
+   ```
+
+   </details>
+
+   <details>
+   <summary><b>Enable on <code>ott-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
+
+   ```bash
+   sudo tailscale up --advertise-exit-node --advertise-routes=192.168.2.0/24
+   sudo rpi-persist-save tailscale
+   ```
+
+   > **Subnet Route Approval**:
+   > 1. Go to your [Tailscale Admin Console](https://login.tailscale.com/admin/machines).
+   > 2. Click **...** next to **`ott-pi-primary`** -> **Edit route settings...** -> check **`192.168.2.0/24`**.
+   > 3. If replacing an older node (e.g. `ottawahome`), remove or disable its routes so Tailscale routes `192.168.2.x` traffic directly to the new Pi.
+   >
+   > **Note:** Do not pass `--accept-routes` on `ott-pi-primary` itself, as accepting routes for its own physical LAN causes Tailscale's routing policy table to intercept local traffic.
+
+   </details>
+
+   <details>
+   <summary><b>Enable on <code>kir-pi-secondary</code></b> (Subnet Router + Exit Node)</summary>
+
+   ```bash
+   sudo tailscale up --advertise-exit-node --accept-routes
+   sudo rpi-persist-save tailscale
+   ```
+
+   </details>
+
+6. **Configure Secrets**:
    Run the interactive master onboarding wizard. It will auto-detect which node you are on and securely prompt you for only the relevant API keys and passwords required for that node. It features auto-resume, so you can safely abort and rerun it at any time without losing progress.
    ```bash
    sudo rpi-onboard
    ```
    > **Note:** For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (docs/secrets.md)](docs/secrets.md).
 
-6. **Restart Affected Services & Test Backup**:
+7. **Restart Affected Services & Test Backup**:
    *(Alternatively, simply `sudo reboot` to start all services cleanly with the new secrets).*
 
    <details>
@@ -284,43 +327,6 @@ Initial setup is fully automated using flashable SD card images released directl
    sudo systemctl start restic-backups-persist.service
    sudo journalctl -u restic-backups-persist.service -f
    sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/ott-pi-primary --password-file /persist/secrets/restic-password --no-cache snapshots
-   ```
-
-   </details>
-
-7. **Enable Tailscale**:
-   Authenticate your nodes with Tailscale. Open the displayed URL in your browser to approve the node in the Tailscale admin console. Once authenticated, node keys and identity are persisted in `/persist/var/lib/tailscale/` across reboots.
-
-   <details>
-   <summary><b>Enable on <code>kir-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
-
-   ```bash
-   sudo tailscale up --advertise-exit-node --accept-routes
-   ```
-
-   </details>
-
-   <details>
-   <summary><b>Enable on <code>ott-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
-
-   ```bash
-   sudo tailscale up --advertise-exit-node --advertise-routes=192.168.2.0/24
-   ```
-
-   > **Subnet Route Approval**:
-   > 1. Go to your [Tailscale Admin Console](https://login.tailscale.com/admin/machines).
-   > 2. Click **...** next to **`ott-pi-primary`** -> **Edit route settings...** -> check **`192.168.2.0/24`**.
-   > 3. If replacing an older node (e.g. `ottawahome`), remove or disable its routes so Tailscale routes `192.168.2.x` traffic directly to the new Pi.
-   >
-   > **Note:** Do not pass `--accept-routes` on `ott-pi-primary` itself, as accepting routes for its own physical LAN causes Tailscale's routing policy table to intercept local traffic.
-
-   </details>
-
-   <details>
-   <summary><b>Enable on <code>kir-pi-secondary</code></b> (Subnet Router + Exit Node)</summary>
-
-   ```bash
-   sudo tailscale up --advertise-exit-node --accept-routes
    ```
 
    </details>
