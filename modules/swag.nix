@@ -14,10 +14,10 @@
         PUID = "1000";
         PGID = "1000";
         TZ = lib.mkDefault "America/Los_Angeles";
-        SUBDOMAINS = "wildcard";
-        VALIDATION = "dns";
-        DNSPLUGIN = "cloudflare";
-        PROPAGATION = "30";
+        SUBDOMAINS = lib.mkDefault "wildcard";
+        VALIDATION = lib.mkDefault "dns";
+        DNSPLUGIN = lib.mkDefault "cloudflare";
+        PROPAGATION = lib.mkDefault "30";
         DISABLE_F2B = "true";
       };
       # Load sensitive domain URL and contact email from persistent secret file (untracked by git)

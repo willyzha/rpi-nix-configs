@@ -26,6 +26,12 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     "docker/swag/config/etc/letsencrypt"
     "docker/swag/config/nginx/proxy-confs"
     "docker/swag/config/dns-conf"
+    "var/lib/tailscale"
+    "var/cache/restic"
+    "docker/ha-matter-hub"
+    "docker/roomassistant/config"
+    "docker/nut_server/upswake"
+    "etc/ssh"
   )
 
   # Expand target aliases and normalize paths
@@ -69,6 +75,12 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         ;;
       roomassistant|room-assistant)
         echo "docker/roomassistant/config"
+        ;;
+      upswake)
+        echo "docker/nut_server/upswake"
+        ;;
+      restic-cache|cache)
+        echo "var/cache/restic"
         ;;
       wyze-bridge)
         echo "secrets/wyze-bridge.env"

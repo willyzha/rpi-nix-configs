@@ -284,9 +284,30 @@ EOF
               chmod 600 "$TMP_PERSIST/secrets/nut-monuser-password"
             fi
 
-            if [ ! -f "$TMP_PERSIST/secrets/rclone-pass" ]; then
-              echo "changeme" > "$TMP_PERSIST/secrets/rclone-pass"
-              chmod 600 "$TMP_PERSIST/secrets/rclone-pass"
+            if [ ! -f "$TMP_PERSIST/secrets/restic-password" ]; then
+              echo "changeme" > "$TMP_PERSIST/secrets/restic-password"
+              chmod 600 "$TMP_PERSIST/secrets/restic-password"
+            fi
+
+            if [ ! -f "$TMP_PERSIST/secrets/mqtt.env" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/mqtt.env"
+MQTT_HOST=192.168.1.X
+MQTT_PORT=1883
+MQTT_USER=
+MQTT_PASS=
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/mqtt.env"
+            fi
+
+            if [ ! -f "$TMP_PERSIST/secrets/espresense-tracker.env" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/espresense-tracker.env"
+MQTT_HOST=192.168.1.10
+MQTT_PORT=1883
+MQTT_USER=
+MQTT_PASSWORD=
+DEVICES=
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/espresense-tracker.env"
             fi
 
             if [ ! -f "$TMP_PERSIST/secrets/swag.env" ]; then

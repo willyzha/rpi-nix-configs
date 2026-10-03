@@ -47,7 +47,7 @@ ${BOLD}Actions:${NC}
 
 ${BOLD}Environment Variables:${NC}
   TARGET_IP       Target IP address or hostname
-  TARGET_HOST     Override auto-detection (pi-primary or pi-secondary)
+  TARGET_HOST     Override auto-detection (kir-pi-primary, kir-pi-secondary, or ott-pi-primary)
   ACTION          Deployment action (default: boot)
   TARGET_USER     Remote SSH user (default: root)
   SSH_KEY         Explicit private SSH key path (optional, auto-discovers all keys in ~/.ssh by default)

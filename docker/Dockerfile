@@ -26,4 +26,4 @@ RUN chmod +x /usr/local/bin/deploy
 WORKDIR /workspace
 
 ENTRYPOINT ["/usr/local/bin/deploy"]
-CMD ["pi-primary", "boot"]
+CMD ["kir-pi-primary", "boot"]

@@ -81,6 +81,22 @@ EOF
   fi
 
   CURRENT_HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
+  if [[ "$CURRENT_HOST" =~ ^(kir-pi-primary|pi-primary) ]]; then
+    if [ ! -f /persist/secrets/espresense-tracker.env ]; then
+      cat <<'EOF' > /persist/secrets/espresense-tracker.env
+MQTT_HOST=192.168.1.10
+MQTT_PORT=1883
+MQTT_USER=
+MQTT_PASSWORD=
+DEVICES=
+EOF
+      chmod 600 /persist/secrets/espresense-tracker.env
+      echo "  [CREATED] /persist/secrets/espresense-tracker.env (default stub)"
+    else
+      echo "  [OK]      /persist/secrets/espresense-tracker.env"
+    fi
+  fi
+
   if [[ "$CURRENT_HOST" =~ ^(ott-pi|pi-remote) ]]; then
     if [ ! -f /persist/secrets/matter-hub.env ]; then
       cat <<'EOF' > /persist/secrets/matter-hub.env
