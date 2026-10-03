@@ -100,6 +100,10 @@
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
     mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale
+    if [ ! -L /etc/resolv.conf ]; then
+      rm -f /etc/resolv.conf
+      ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+    fi
   '';
 
   # 4. Volatile system logging: logs are kept in RAM only (max 32MB)
@@ -157,6 +161,8 @@
     "d /persist/var/lib/tailscale 0700 root root -"
     "d /persist/var/lib/AdGuardHome 0755 root root -"
     "d /persist/docker 0755 root root -"
+    "d /run/resolvconf 0755 root root -"
+    "f /run/resolvconf/resolv.conf 0644 root root -"
   ];
 
   # 9. Automatic first-boot initialization for /persist
@@ -317,6 +323,10 @@ EOF
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
         mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
+        if [ ! -L /etc/resolv.conf ]; then
+          rm -f /etc/resolv.conf
+          ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+        fi
         ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
         ${pkgs.systemd}/bin/udevadm settle || true
