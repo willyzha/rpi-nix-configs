@@ -22,9 +22,10 @@
       generic-extlinux-compatible.enable = true;
     };
 
-    # Kernel parameters for quiet boot and console
-    kernelParams = [
-      "console=ttyAMA0,115200"
+    # Kernel parameters: use ttyS0 for GPIO serial and tty1 for display.
+    # Do NOT include ttyAMA0 because on Raspberry Pi 3/4 ttyAMA0 is wired to Bluetooth!
+    kernelParams = lib.mkForce [
+      "console=ttyS0,115200n8"
       "console=tty1"
     ];
   };
