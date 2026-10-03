@@ -222,9 +222,27 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   fi
   mount -o remount,ro / 2>/dev/null || true
   
+  echo "Restarting services with newly configured credentials..."
+  systemctl reset-failed || true
+  for svc in rpi-mqtt-monitor mosquitto wg-quick-wg0 wireguard-wg0 keepalived nut-server nut-monitor; do
+    if systemctl list-unit-files "$svc.service" &>/dev/null; then
+      systemctl restart "$svc.service" 2>/dev/null || true
+    fi
+  done
+  if systemctl is-active docker >/dev/null 2>&1; then
+    for c_svc in $(systemctl list-units --type=service --state=loaded --plain --no-legend "docker-*" 2>/dev/null | awk '{print $1}'); do
+      systemctl restart "$c_svc" 2>/dev/null || true
+    done
+  fi
+
   echo ""
   echo "================================================================"
   echo "               Onboarding Complete!                             "
   echo "================================================================"
-  echo "Please reboot your Pi (sudo reboot) for all services to start cleanly."
+  if command -v rpi-services-status >/dev/null 2>&1; then
+    echo "Current System Health:"
+    rpi-services-status || true
+    echo ""
+  fi
+  echo "Setup finished. You may reboot your Pi (sudo reboot) or continue running."
 ''

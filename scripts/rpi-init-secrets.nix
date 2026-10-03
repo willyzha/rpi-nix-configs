@@ -66,21 +66,25 @@ EOF
     echo "  [OK]      /persist/secrets/swag.env"
   fi
 
+  CURRENT_HOST="''${HOST:-$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)}"
+
   # MQTT broker configuration for Home Assistant telemetry
   if [ ! -f /persist/secrets/mqtt.env ]; then
-    cat <<'EOF' > /persist/secrets/mqtt.env
-MQTT_HOST=192.168.1.X
+    DEFAULT_MQTT_HOST="192.168.1.X"
+    if [[ "$CURRENT_HOST" =~ ^(ott-pi-primary|ott-pi|pi-remote) ]]; then
+      DEFAULT_MQTT_HOST="127.0.0.1"
+    fi
+    cat <<EOF > /persist/secrets/mqtt.env
+MQTT_HOST=$DEFAULT_MQTT_HOST
 MQTT_PORT=1883
 MQTT_USER=
 MQTT_PASS=
 EOF
     chmod 600 /persist/secrets/mqtt.env
-    echo "  [CREATED] /persist/secrets/mqtt.env (default: 192.168.1.X:1883)"
+    echo "  [CREATED] /persist/secrets/mqtt.env (default: $DEFAULT_MQTT_HOST:1883)"
   else
     echo "  [OK]      /persist/secrets/mqtt.env"
   fi
-
-  CURRENT_HOST="''${HOST:-$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)}"
   if [[ "$CURRENT_HOST" =~ ^(kir-pi-primary|pi-primary) ]]; then
     if [ ! -f /persist/secrets/espresense-tracker.env ]; then
       cat <<'EOF' > /persist/secrets/espresense-tracker.env

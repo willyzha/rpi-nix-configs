@@ -32,6 +32,13 @@
     ];
   };
 
+  # Volatile Mosquitto state in RAM: allows mosquitto to save in-memory database on read-only root
+  fileSystems."/var/lib/mosquitto" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0700" "uid=mosquitto" "gid=mosquitto" "size=16M" ];
+  };
+
   # 2. Tailscale (Native)
   services.tailscale = {
     enable = true;
@@ -86,7 +93,7 @@
         environment = {
           FILTER_NAMES = "Kitchen Cam";
           WB_AUTH = "False";
-          MQTT_HOST = "127.0.0.1:1883"; # Pointed to local Mosquitto
+          MQTT_HOST = "127.0.0.1"; # Pointed to local Mosquitto
         };
         # Ports are ignored by docker when network=host is used
         extraOptions = [ "--network=host" ];

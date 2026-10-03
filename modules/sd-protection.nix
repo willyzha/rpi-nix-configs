@@ -84,6 +84,15 @@
     };
   };
 
+  systemd.timers.rpi-persist-save-certs = {
+    description = "Periodic persistence check for Let's Encrypt certificates";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+    };
+  };
+
   systemd.services.rpi-persist-save-certs = {
     description = "Auto-persist renewed SWAG SSL certificates to SD card";
     serviceConfig = {
@@ -99,7 +108,7 @@
   # Ensure mount points exist and root is writable during activation
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-    mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale /root/.cache
+    mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale /root/.cache /var/db/dhcpcd /var/lib/mosquitto
     if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
       rm -f /etc/resolv.conf 2>/dev/null || true
       ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true
@@ -143,6 +152,13 @@
     device = "tmpfs";
     fsType = "tmpfs";
     options = [ "nosuid" "nodev" "noatime" "mode=0700" "size=2M" ];
+  };
+
+  # Volatile dhcpcd leases in RAM: prevents constant lease writes to SD card and eliminates read-only errors
+  fileSystems."/var/db/dhcpcd" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0750" "size=4M" ];
   };
 
   # Volatile AdGuard Home state in RAM: completely ephemeral, zero SD wear, 100% declarative
@@ -395,7 +411,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut /root/.cache
+        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut /root/.cache /var/db/dhcpcd /var/lib/mosquitto
         if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
           rm -f /etc/resolv.conf 2>/dev/null || true
           ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true
