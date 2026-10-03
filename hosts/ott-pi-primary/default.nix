@@ -6,7 +6,6 @@
     ../../modules/sd-protection.nix
     ../../modules/hardware-rpi4.nix
     ../../modules/docker.nix
-    ../../modules/swag.nix
   ];
 
   networking = {
@@ -67,13 +66,6 @@
     backend = "docker";
     containers = {
 
-      # SWAG overrides for Ottawa DuckDNS
-      swag.environment = {
-        TZ = "America/Toronto";
-        VALIDATION = "duckdns";
-        DNSPLUGIN = lib.mkForce "";
-        PROPAGATION = lib.mkForce "";
-      };
 
       # Home Assistant Matter Hub
       matter-hub = {

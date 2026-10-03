@@ -48,7 +48,9 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     echo "================================================================"
     echo "Core Secrets:"
     check_secret "/persist/secrets/mqtt.env" "MQTT Credentials"
-    check_secret "/persist/secrets/swag.env" "SWAG Reverse Proxy"
+    if [[ ! "$HOST" =~ ^(ott-pi|pi-remote) ]]; then
+      check_secret "/persist/secrets/swag.env" "SWAG Reverse Proxy"
+    fi
     check_secret "/persist/secrets/restic-password" "Restic Encryption Password"
     check_secret "/persist/secrets/rclone.conf" "Rclone Backup Config"
     echo ""
@@ -172,8 +174,10 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     prompt_file "/persist/secrets/mqtt.env" "MQTT Telemetry Monitor Credentials" "MQTT_HOST=192.168.1.X\nMQTT_PORT=1883\nMQTT_USER=\nMQTT_PASS=\n"
   fi
   
-  # SWAG Reverse Proxy
-  run_wizard "/persist/secrets/swag.env" "rpi-set-swag" "SWAG Reverse Proxy Setup"
+  # SWAG Reverse Proxy (Kirkland cluster only)
+  if [[ ! "$HOST" =~ ^(ott-pi|pi-remote) ]]; then
+    run_wizard "/persist/secrets/swag.env" "rpi-set-swag" "SWAG Reverse Proxy Setup"
+  fi
   
   # Restic Backup
   run_wizard "/persist/secrets/restic-password" "rpi-set-restic-password" "Restic Encryption Password"
