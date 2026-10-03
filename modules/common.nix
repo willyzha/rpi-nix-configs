@@ -87,6 +87,7 @@
   boot.kernel.sysctl = {
     # IP forwarding and routing marks for containers, WireGuard, and Tailscale
     "net.ipv4.ip_forward" = 1;
+    "net.ipv6.conf.all.forwarding" = 1;
     "net.ipv4.conf.all.src_valid_mark" = 1;
 
     # Auto-reboot safely on kernel panics (e.g. RCU starvation or soft lockups) instead of freezing forever
