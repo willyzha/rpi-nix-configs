@@ -335,6 +335,9 @@ EOF
                     "$TMP_PERSIST/docker/swag/logrotate/logrotate.d/php-fpm"
             fi
 
+            if [ -d "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml" ]; then
+              rm -rf "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml"
+            fi
             if [ ! -f "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml" ]; then
               cat <<'EOF' > "$TMP_PERSIST/docker/nut_server/upswake/upswake-config.yaml"
 # UPSWake starter config
