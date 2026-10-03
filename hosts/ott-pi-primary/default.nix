@@ -16,8 +16,13 @@
   time.timeZone = "America/Toronto";
 
   # ---------------------------------------------------------------------------
-  # Native NixOS Services
+  # Bluetooth Hardware Support (Room-Assistant)
   # ---------------------------------------------------------------------------
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+
 
   # 1. Eclipse Mosquitto MQTT Server (Native)
   services.mosquitto = {
