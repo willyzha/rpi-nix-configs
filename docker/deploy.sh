@@ -156,7 +156,7 @@ if [ -S "/ssh-agent" ]; then
   export SSH_AUTH_SOCK="/ssh-agent"
 fi
 
-SSH_OPTS="-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts -o UserKnownHostsFile=/root/.ssh/known_hosts -o ConnectTimeout=8 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
+SSH_OPTS="-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=10 -o TCPKeepAlive=yes"
 
 KEY_OPTS=""
 FOUND_KEYS=()
@@ -348,6 +348,22 @@ if [[ "$ACTION" == "build-only" || "$ACTION" == "build" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
+# Build on Host (Fast Host CPU, Host RAM, Host Network)
+# ------------------------------------------------------------------------------
+echo -e "\n${GREEN}==> Step 2/5: Building NixOS system toplevel on host (${TARGET_HOST})...${NC}"
+START_TIME=$(date +%s)
+
+TOPLEVEL=$(nix build \
+  --extra-experimental-features "nix-command flakes" \
+  --option extra-platforms "aarch64-linux armv7l-linux" \
+  --no-link \
+  --print-out-paths \
+  "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
+
+BUILD_DURATION=$(( $(date +%s) - START_TIME ))
+echo -e "  Host build finished in ${BOLD}${BUILD_DURATION}s${NC}: $TOPLEVEL"
+
+# ------------------------------------------------------------------------------
 # SD Card Zero-Wear Protection: Remount target / and /boot/firmware RW
 # Set cleanup trap to ensure target is ALWAYS restored to Read-Only on exit/error
 # ------------------------------------------------------------------------------
@@ -362,32 +378,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo -e "\n${GREEN}==> Step 2/5: Remounting target / and /boot/firmware as Read-Write...${NC}"
+echo -e "\n${GREEN}==> Step 3/5: Remounting target / and /boot/firmware as Read-Write...${NC}"
 ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "mount -o remount,rw / && (mountpoint -q /boot/firmware && mount -o remount,rw /boot/firmware || true)"
 TARGET_REMOUNTED_RW=true
 echo -e "  Target partitions are writable for store updates."
-
-# ------------------------------------------------------------------------------
-# Build on Host (Fast Host CPU, Host RAM, Host Network)
-# ------------------------------------------------------------------------------
-echo -e "\n${GREEN}==> Step 3/5: Building NixOS system toplevel on host (${TARGET_HOST})...${NC}"
-START_TIME=$(date +%s)
-
-TOPLEVEL=$(nix build \
-  --extra-experimental-features "nix-command flakes" \
-  --option extra-platforms "aarch64-linux armv7l-linux" \
-  --no-link \
-  --print-out-paths \
-  "${FLAKE_REF}#nixosConfigurations.${TARGET_HOST}.config.system.build.toplevel")
-
-BUILD_DURATION=$(( $(date +%s) - START_TIME ))
-echo -e "  Host build finished in ${BOLD}${BUILD_DURATION}s${NC}: $TOPLEVEL"
 
 # ------------------------------------------------------------------------------
 # Copy Closure to Target Pi
 # ------------------------------------------------------------------------------
 echo -e "\n${GREEN}==> Step 4/5: Transferring closure deltas to ${TARGET_IP} via SSH...${NC}"
 COPY_START=$(date +%s)
+
+# Throttle dirty page buffering on target so slow SD card I/O flushes in small increments without stalling the 14s watchdog
+ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "sysctl -w vm.dirty_background_bytes=16777216 vm.dirty_bytes=33554432 >/dev/null 2>&1 || true"
 
 # Use nix copy over SSH (exports NIX_SSHOPTS so all discovered keys and options are used)
 export NIX_SSHOPTS="$SSH_OPTS"
