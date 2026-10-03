@@ -4,9 +4,10 @@
   imports = [
     ../scripts
     ./mqtt-monitor.nix
+    ./restic.nix
   ];
-  # Time zone matching your existing setup
-  time.timeZone = "America/Los_Angeles";
+  # Time zone matching your existing setup (defaults to America/Los_Angeles, overrideable per host)
+  time.timeZone = lib.mkDefault "America/Los_Angeles";
 
   # Localization
   i18n.defaultLocale = "en_US.UTF-8";
@@ -73,7 +74,7 @@
     useDHCP = lib.mkDefault false; # Avoid acquiring DHCP leases on virtual interfaces (vrrp.51, wg0, docker0)
     interfaces.eth0.useDHCP = lib.mkDefault true; # Auto-detect IP on physical eth0
     firewall.enable = false; # Disable internal firewall by default (handled by container/services)
-    nameservers = [ "192.168.1.11" "1.1.1.1" "9.9.9.9" ];
+    nameservers = lib.mkDefault [ "1.1.1.1" "9.9.9.9" ];
   };
 
   # Kernel sysctl tuning for Keepalived VMAC (Virtual MAC) and seamless failover

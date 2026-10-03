@@ -80,6 +80,50 @@ EOF
     echo "  [OK]      /persist/secrets/mqtt.env"
   fi
 
+  CURRENT_HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
+  if [[ "$CURRENT_HOST" =~ ^(ott-pi|pi-remote) ]]; then
+    if [ ! -f /persist/secrets/matter-hub.env ]; then
+      cat <<'EOF' > /persist/secrets/matter-hub.env
+HAMH_HOME_ASSISTANT_URL=https://hass-ottawa.wzhang.dev
+HAMH_HOME_ASSISTANT_ACCESS_TOKEN=
+EOF
+      chmod 600 /persist/secrets/matter-hub.env
+      echo "  [CREATED] /persist/secrets/matter-hub.env (default stub)"
+    else
+      echo "  [OK]      /persist/secrets/matter-hub.env"
+    fi
+
+    if [ ! -f /persist/secrets/wyze-bridge.env ]; then
+      cat <<'EOF' > /persist/secrets/wyze-bridge.env
+WYZE_EMAIL=
+WYZE_PASSWORD=
+API_ID=
+API_KEY=
+EOF
+      chmod 600 /persist/secrets/wyze-bridge.env
+      echo "  [CREATED] /persist/secrets/wyze-bridge.env (default stub)"
+    else
+      echo "  [OK]      /persist/secrets/wyze-bridge.env"
+    fi
+
+    if [ ! -f /persist/secrets/wg0.conf ]; then
+      cat <<'EOF' > /persist/secrets/wg0.conf
+[Interface]
+PrivateKey = changeme
+Address = 10.13.13.2/24
+
+[Peer]
+PublicKey = changeme
+Endpoint = example.com:51820
+AllowedIPs = 0.0.0.0/0
+EOF
+      chmod 600 /persist/secrets/wg0.conf
+      echo "  [CREATED] /persist/secrets/wg0.conf (default stub)"
+    else
+      echo "  [OK]      /persist/secrets/wg0.conf"
+    fi
+  fi
+
   echo "==> All secret files verified."
   if command -v rpi-persist-save >/dev/null 2>&1; then
     rpi-persist-save secrets

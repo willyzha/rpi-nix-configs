@@ -248,6 +248,7 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     case "$DETECTED_HOSTNAME" in
       pi-primary) DETECTED_CONFIG="kir-pi-primary" ;;
       pi-secondary) DETECTED_CONFIG="kir-pi-secondary" ;;
+      ott-pi|pi-remote) DETECTED_CONFIG="ott-pi-primary" ;;
       *) DETECTED_CONFIG="$DETECTED_HOSTNAME" ;;
     esac
 

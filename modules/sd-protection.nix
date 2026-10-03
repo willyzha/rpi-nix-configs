@@ -150,6 +150,14 @@
     User = "root";
   };
 
+  # Persistent Tailscale state: bind-mounted from /persist so auth and IP keys survive reboots
+  fileSystems."/var/lib/tailscale" = lib.mkIf (config.services ? tailscale && config.services.tailscale.enable) {
+    device = "/persist/var/lib/tailscale";
+    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
+    noCheck = true;
+    depends = [ "/persist" ];
+  };
+
   # 6. Persist SSH host keys so SSH client fingerprints don't change on reboot
   services.openssh.hostKeys = [
     {
@@ -294,10 +302,8 @@ EOF
               "$TMP_PERSIST/docker/swag/config" \
               "$TMP_PERSIST/docker/swag/logrotate/logrotate.d" \
               "$TMP_PERSIST/docker/nut_server/upswake/upswake-rules" \
-              "$TMP_PERSIST/docker/portainer/data" \
-              "$TMP_PERSIST/docker/python_container" \
-              "$TMP_PERSIST/docker/rclone/config" \
-              "$TMP_PERSIST/docker/rclone/downloads" \
+              "$TMP_PERSIST/docker/ha-matter-hub" \
+              "$TMP_PERSIST/docker/roomassistant/config" \
               "$TMP_PERSIST/home/pi"
 
             if [ ! -f "$TMP_PERSIST/docker/swag/logrotate/logrotate.conf" ]; then
@@ -315,15 +321,6 @@ server:
   host: "127.0.0.1"
   port: 3493
 EOF
-            fi
-
-            if [ ! -f "$TMP_PERSIST/docker/python_container/run.sh" ]; then
-              cat <<'EOF' > "$TMP_PERSIST/docker/python_container/run.sh"
-#!/bin/sh
-echo "Container started."
-sleep infinity
-EOF
-              chmod +x "$TMP_PERSIST/docker/python_container/run.sh"
             fi
 
             umount "$TMP_PERSIST"

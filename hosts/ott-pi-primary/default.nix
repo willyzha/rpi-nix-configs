@@ -12,6 +12,9 @@
     hostName = "ott-pi-primary";
   };
 
+  # Ottawa local timezone
+  time.timeZone = "America/Toronto";
+
   # ---------------------------------------------------------------------------
   # Native NixOS Services
   # ---------------------------------------------------------------------------
@@ -31,13 +34,6 @@
   # 2. Tailscale (Native)
   services.tailscale = {
     enable = true;
-  };
-
-  fileSystems."/var/lib/tailscale" = {
-    device = "/persist/var/lib/tailscale";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
-    noCheck = true;
-    depends = [ "/persist" ];
   };
 
   # 3. WireGuard (Native)
@@ -133,38 +129,6 @@
 
     };
   };
-
-  # ---------------------------------------------------------------------------
-  # Restic Backups
-  # ---------------------------------------------------------------------------
-  services.restic.backups.persist = {
-    initialize = true;
-    repository = "rclone:dropbox:backups/ott-pi-primary";
-    rcloneConfigFile = "/persist/secrets/rclone.conf";
-    passwordFile = "/persist/secrets/restic-password";
-    paths = [
-      "/persist"
-    ];
-    exclude = [
-      "/persist/var/lib/docker"
-    ];
-    extraBackupArgs = [
-      "--no-cache"
-    ];
-    timerConfig = {
-      OnCalendar = "03:00";
-      Persistent = true;
-    };
-    pruneOpts = [
-      "--keep-daily 3"
-      "--keep-weekly 2"
-      "--keep-monthly 1"
-    ];
-  };
-
-  systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
-    "-/bin/sh -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then mkdir -p /persist/var/cache/restic && date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
-  ];
 
   system.stateVersion = "24.05";
 }

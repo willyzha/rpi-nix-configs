@@ -74,12 +74,10 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         logger.info("Connected to MQTT broker")
         client.subscribe("espresense/devices/+/+")
-        client.subscribe("espresense/#") # Fallback to catch all
     else:
         logger.error(f"Failed to connect to MQTT broker, return code: {rc}")
 
 def on_message(client, userdata, msg):
-    logger.info(f"RECV: {msg.topic}")
     try:
         parts = msg.topic.split("/")
         if len(parts) < 4:
@@ -89,10 +87,9 @@ def on_message(client, userdata, msg):
         node_id = parts[3]
         
         if not TRACK_ALL and device_id not in DEVICES_TO_TRACK:
-            # logger.info(f"Skipping {device_id} (not in DEVICES_TO_TRACK)")
             return
             
-        logger.info(f"Processing {device_id} at node {node_id}")
+        logger.debug(f"Processing {device_id} at node {node_id}")
 
         payload = json.loads(msg.payload.decode('utf-8'))
         distance = payload.get("distance")
