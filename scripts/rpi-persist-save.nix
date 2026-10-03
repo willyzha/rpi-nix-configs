@@ -52,7 +52,9 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         echo "var/lib/tailscale"
         ;;
       adguard|adguard-config)
-        echo "var/lib/AdGuardHome/AdGuardHome.yaml"
+        echo "Error: AdGuard Home is declaratively managed by NixOS (mutableSettings = false)." >&2
+        echo "Web UI changes cannot be saved to the SD card. Update hosts/kir-pi-*.nix and deploy instead." >&2
+        return 0
         ;;
       ssh)
         echo "etc/ssh"
@@ -74,6 +76,11 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
     TARGET="''${TARGET#/persist-raw/}"
     TARGET="''${TARGET#/}"
     TARGET="''${TARGET%/}"
+
+    if [[ "$TARGET" == *"AdGuardHome"* ]]; then
+      echo "  [BLOCKED] '/persist/$TARGET' is declaratively managed by NixOS. Web UI changes are not persisted."
+      return 0
+    fi
 
     local SRC="/persist/$TARGET"
     local DEST="/persist-raw/$TARGET"
