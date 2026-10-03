@@ -99,7 +99,7 @@
   # Ensure mount points exist and root is writable during activation
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-    mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale
+    mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale /root/.cache
     if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
       rm -f /etc/resolv.conf 2>/dev/null || true
       ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true
@@ -122,6 +122,13 @@
     device = "tmpfs";
     fsType = "tmpfs";
     options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=64M" ];
+  };
+
+  # Volatile root user cache in RAM: allows root tools (restic, curl, git) to write cache on read-only root
+  fileSystems."/root/.cache" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0700" "size=64M" ];
   };
 
   # Volatile daemon socket in RAM: allows nix-daemon.socket to listen even when root is read-only
@@ -388,7 +395,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
+        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut /root/.cache
         if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
           rm -f /etc/resolv.conf 2>/dev/null || true
           ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true

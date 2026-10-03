@@ -21,7 +21,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     if [ ! -s "$file" ]; then
       return 0
     fi
-    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com|127\.0\.0\.1:51820)' "$file" 2>/dev/null; then
+    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com|127\.0\.0\.1:51820|homeassistant\.local)' "$file" 2>/dev/null; then
       return 0
     fi
     if grep -q -E 'HAMH_HOME_ASSISTANT_ACCESS_TOKEN=$|WYZE_EMAIL=$' "$file" 2>/dev/null; then

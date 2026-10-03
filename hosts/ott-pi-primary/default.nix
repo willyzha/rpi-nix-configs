@@ -45,6 +45,9 @@
     };
   };
 
+  # Provide wireguard-wg0.service alias for seamless cross-node systemctl compatibility
+  systemd.services.wg-quick-wg0.aliases = [ "wireguard-wg0.service" ];
+
   # ---------------------------------------------------------------------------
   # Docker Containers
   # ---------------------------------------------------------------------------
@@ -55,7 +58,6 @@
       # SWAG overrides for Ottawa DuckDNS
       swag.environment = {
         TZ = "America/Toronto";
-        URL = "ottawahome.duckdns.org";
         VALIDATION = "duckdns";
         DNSPLUGIN = lib.mkForce "";
         PROPAGATION = lib.mkForce "";
@@ -65,9 +67,8 @@
       matter-hub = {
         image = "ghcr.io/riddix/home-assistant-matter-hub:latest";
         autoStart = true;
-        environmentFiles = [ "/persist/secrets/matter-hub.env" ]; # Store ACCESS_TOKEN here
+        environmentFiles = [ "/persist/secrets/matter-hub.env" ]; # Store HAMH_HOME_ASSISTANT_URL and ACCESS_TOKEN here
         environment = {
-          HAMH_HOME_ASSISTANT_URL = "http://homeassistant.local:8123";
           HAMH_LOG_LEVEL = "info";
           HAMH_HTTP_PORT = "8482";
         };
