@@ -11,6 +11,18 @@
   # Localization
   i18n.defaultLocale = "en_US.UTF-8";
 
+  # Hardware clock fallback: Pi 3 has no RTC. Use raw IP time servers so clock syncs immediately without DNS
+  services.timesyncd = {
+    enable = true;
+    servers = [
+      "216.239.35.0" # time.google.com IP fallback
+      "216.239.35.4" # time.google.com IP fallback
+      "1.1.1.1"      # Cloudflare NTP IP fallback
+      "time.google.com"
+      "pool.ntp.org"
+    ];
+  };
+
   # Enable zram compressed swap to prevent OOM on 1GB RAM Pi 3 (compressed RAM, zero SD wear)
   # Enable EarlyOOM to prevent RCU kernel stall during heavy memory pressure
   services.earlyoom = {

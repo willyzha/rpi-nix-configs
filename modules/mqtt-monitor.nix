@@ -3,7 +3,11 @@
 let
   hostName = config.networking.hostName;
   nodeId = lib.replaceStrings [ "-" ] [ "_" ] hostName;
-  displayName = if hostName == "pi-primary" then "Pi Primary" else "Pi Secondary";
+  displayName =
+    if hostName == "kir-pi-primary" || hostName == "pi-primary" then "Pi Primary"
+    else if hostName == "kir-pi-secondary" || hostName == "pi-secondary" then "Pi Secondary"
+    else if hostName == "ott-pi-primary" || hostName == "ott-pi" || hostName == "pi-remote" then "Ott Pi Primary"
+    else hostName;
   stateTopic = "rpi/${hostName}/state";
   availTopic = "rpi/${hostName}/availability";
 
@@ -62,7 +66,32 @@ let
 EOF
 )
 
+    cleanup_legacy_discovery() {
+      local legacy_node=""
+      local legacy_host=""
+      if [ "${hostName}" = "kir-pi-primary" ]; then
+        legacy_node="pi_primary"
+        legacy_host="pi-primary"
+      elif [ "${hostName}" = "kir-pi-secondary" ]; then
+        legacy_node="pi_secondary"
+        legacy_host="pi-secondary"
+      fi
+
+      if [ -n "$legacy_node" ]; then
+        local components=("sensor" "binary_sensor" "update")
+        local objects=("cpu_usage" "memory_usage" "memory_used" "cpu_temperature" "last_boot" "vrrp_status" "services_health" "last_backup" "update_available" "update")
+        for comp in "''${components[@]}"; do
+          for obj in "''${objects[@]}"; do
+            $PUB -r -t "homeassistant/$comp/$legacy_node/$obj/config" -n 2>/dev/null || true
+          done
+        done
+        $PUB -r -t "rpi/$legacy_host/availability" -n 2>/dev/null || true
+        $PUB -r -t "rpi/$legacy_host/state" -n 2>/dev/null || true
+      fi
+    }
+
     publish_all_discovery() {
+      cleanup_legacy_discovery
       echo "==> Publishing Home Assistant MQTT Discovery configurations for ${displayName}..."
 
       # CPU Usage Sensor
