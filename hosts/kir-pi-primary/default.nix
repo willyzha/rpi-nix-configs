@@ -14,16 +14,7 @@
   networking = {
     hostName = "kir-pi-primary";
     firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
-  };
-
-  # ---------------------------------------------------------------------------
-  # State Persistence for Native Services (Bind-mounted from /persist)
-  # ---------------------------------------------------------------------------
-  fileSystems."/var/lib/tailscale" = {
-    device = "/persist/var/lib/tailscale";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
-    noCheck = true;
-    depends = [ "/persist" ];
+    nameservers = [ "127.0.0.1" "192.168.1.9" "1.1.1.1" ];
   };
 
   # ---------------------------------------------------------------------------
@@ -128,42 +119,12 @@
     };
   };
 
-  # Native Restic backup of /persist to Dropbox via Rclone
-  services.restic.backups.persist = {
-    initialize = true;
-    repository = "rclone:dropbox:backups/pi-primary";
-    rcloneConfigFile = "/persist/secrets/rclone.conf";
-    passwordFile = "/persist/secrets/restic-password";
-    paths = [
-      "/persist"
-    ];
-    exclude = [
-      "/persist/var/lib/docker"
-    ];
-    extraBackupArgs = [
-      "--no-cache"
-    ];
-    timerConfig = {
-      OnCalendar = "03:00";
-      Persistent = true;
-    };
-    pruneOpts = [
-      "--keep-daily 3"
-      "--keep-weekly 2"
-      "--keep-monthly 1"
-    ];
-  };
-
   # ESPresense Simple Tracker
   services.espresense-tracker = {
     enable = true;
     mqttHost = "192.168.1.10";
     envFile = "/persist/secrets/espresense-tracker.env";
   };
-
-  systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
-    "-/bin/sh -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then mkdir -p /persist/var/cache/restic && date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
-  ];
 
   system.stateVersion = "24.05";
 }

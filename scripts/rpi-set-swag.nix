@@ -38,37 +38,63 @@ pkgs.writeShellScriptBin "rpi-set-swag" ''
     exit 1
   fi
 
-  mkdir -p /persist/secrets
-  cat <<EOF > /persist/secrets/swag.env
+  CURRENT_HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
+  if [[ "$CURRENT_HOST" =~ ^(ott-pi|pi-remote) ]]; then
+    # DuckDNS setup for Ottawa
+    CURRENT_DUCK_TOKEN=""
+    if [ -f /persist/secrets/swag.env ]; then
+      CURRENT_DUCK_TOKEN=$(grep -E '^DUCKDNSTOKEN=' /persist/secrets/swag.env | cut -d= -f2- || true)
+    fi
+    PROMPT_TEXT="Enter DuckDNS Token"
+    if [ -n "$CURRENT_DUCK_TOKEN" ]; then
+      PROMPT_TEXT="$PROMPT_TEXT [press Enter to keep existing token]"
+    fi
+    read -rsp "$PROMPT_TEXT: " INPUT_DUCK_TOKEN
+    echo
+    DUCK_TOKEN="${INPUT_DUCK_TOKEN:-$CURRENT_DUCK_TOKEN}"
+
+    mkdir -p /persist/secrets
+    cat <<EOF > /persist/secrets/swag.env
+URL=$URL
+EMAIL=$EMAIL
+DUCKDNSTOKEN=$DUCK_TOKEN
+EOF
+    chmod 600 /persist/secrets/swag.env
+    echo "==> Stored URL, EMAIL, and DUCKDNSTOKEN in /persist/secrets/swag.env"
+  else
+    # Cloudflare DNS setup for Kirkland
+    mkdir -p /persist/secrets
+    cat <<EOF > /persist/secrets/swag.env
 URL=$URL
 EMAIL=$EMAIL
 EOF
-  chmod 600 /persist/secrets/swag.env
-  echo "==> Stored URL and EMAIL in /persist/secrets/swag.env"
+    chmod 600 /persist/secrets/swag.env
+    echo "==> Stored URL and EMAIL in /persist/secrets/swag.env"
 
-  # 3. Cloudflare API Token
-  CF_DIR="/persist/docker/swag/config/dns-conf"
-  CF_INI="$CF_DIR/cloudflare.ini"
-  mkdir -p "$CF_DIR"
-  CURRENT_TOKEN=""
-  if [ -f "$CF_INI" ]; then
-    CURRENT_TOKEN=$(grep -E 'dns_cloudflare_api_token' "$CF_INI" | awk -F= '{gsub(/[ \t]/,"",$2); print $2}' || true)
-  fi
+    # 3. Cloudflare API Token
+    CF_DIR="/persist/docker/swag/config/dns-conf"
+    CF_INI="$CF_DIR/cloudflare.ini"
+    mkdir -p "$CF_DIR"
+    CURRENT_TOKEN=""
+    if [ -f "$CF_INI" ]; then
+      CURRENT_TOKEN=$(grep -E 'dns_cloudflare_api_token' "$CF_INI" | awk -F= '{gsub(/[ \t]/,"",$2); print $2}' || true)
+    fi
 
-  PROMPT_TEXT="Enter Cloudflare API Token"
-  if [ -n "$CURRENT_TOKEN" ]; then
-    PROMPT_TEXT="$PROMPT_TEXT [press Enter to keep existing token]"
-  fi
-  read -rsp "$PROMPT_TEXT: " INPUT_TOKEN
-  echo
+    PROMPT_TEXT="Enter Cloudflare API Token"
+    if [ -n "$CURRENT_TOKEN" ]; then
+      PROMPT_TEXT="$PROMPT_TEXT [press Enter to keep existing token]"
+    fi
+    read -rsp "$PROMPT_TEXT: " INPUT_TOKEN
+    echo
 
-  TOKEN="''${INPUT_TOKEN:-$CURRENT_TOKEN}"
-  if [ -n "$TOKEN" ]; then
-    cat <<EOF > "$CF_INI"
+    TOKEN="''${INPUT_TOKEN:-$CURRENT_TOKEN}"
+    if [ -n "$TOKEN" ]; then
+      cat <<EOF > "$CF_INI"
 dns_cloudflare_api_token = $TOKEN
 EOF
-    chmod 600 "$CF_INI"
-    echo "==> Stored Cloudflare token in $CF_INI"
+      chmod 600 "$CF_INI"
+      echo "==> Stored Cloudflare token in $CF_INI"
+    fi
   fi
 
   # 4. Proxy Configurations Check & Reminder
