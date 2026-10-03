@@ -51,7 +51,7 @@ pkgs.writeShellScriptBin "rpi-set-swag" ''
     fi
     read -rsp "$PROMPT_TEXT: " INPUT_DUCK_TOKEN
     echo
-    DUCK_TOKEN="${INPUT_DUCK_TOKEN:-$CURRENT_DUCK_TOKEN}"
+    DUCK_TOKEN="''${INPUT_DUCK_TOKEN:-$CURRENT_DUCK_TOKEN}"
 
     mkdir -p /persist/secrets
     cat <<EOF > /persist/secrets/swag.env
