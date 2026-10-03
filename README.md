@@ -154,11 +154,14 @@ You do **not** need to clone this repository to deploy updates! By using `docker
 
 *(Note: The `/tmp/rpi-nix-store` and `/tmp/rpi-nix-cache` paths bind-mount to your host's temporary directory. This prevents permanent storage bloat on your machine, but means the cache will be cleared when your host reboots. If your host's `/tmp` is a RAM-disk, ensure you have at least 4GB of free RAM to hold the Nix build closure!)*
 
+> **DNS / mDNS Resolution:** Because Docker containers run in an isolated environment without an mDNS daemon, `.local` hostnames must be resolved on your host machine. The commands below use `$(getent hosts <node>.local | awk '{print $1}')` to dynamically resolve the IP from your host and pass it into the container via `TARGET_IP`.
+
 <details>
 <summary><b>Deploy to <code>kir-pi-primary</code></b></summary>
 
 ```bash
 docker run --rm --net=host \
+  -e TARGET_IP=$(getent hosts kir-pi-primary.local | awk '{print $1}') \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
@@ -173,6 +176,7 @@ docker run --rm --net=host \
 
 ```bash
 docker run --rm --net=host \
+  -e TARGET_IP=$(getent hosts kir-pi-secondary.local | awk '{print $1}') \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
@@ -187,6 +191,7 @@ docker run --rm --net=host \
 
 ```bash
 docker run --rm --net=host \
+  -e TARGET_IP=$(getent hosts ott-pi-primary.local | awk '{print $1}') \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
   -v /tmp/rpi-nix-store:/nix \
