@@ -21,7 +21,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     if [ ! -s "$file" ]; then
       return 0
     fi
-    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com|127\.0\.0\.1:51820)' "$file" 2>/dev/null; then
+    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com|127\.0\.0\.1:51820|homeassistant\.local)' "$file" 2>/dev/null; then
       return 0
     fi
     if grep -q -E 'HAMH_HOME_ASSISTANT_ACCESS_TOKEN=$|WYZE_EMAIL=$' "$file" 2>/dev/null; then
@@ -202,7 +202,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       ;;
     ott-pi-primary|ott-pi|pi-remote)
       prompt_file "/persist/secrets/wg0.conf" "WireGuard Full Client Config" "[Interface]\nPrivateKey = ...\nAddress = ...\n\n[Peer]\nPublicKey = ...\nEndpoint = ...\nAllowedIPs = 0.0.0.0/0\n"
-      prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=https://hass-ottawa.wzhang.dev\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
+      prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
       prompt_file "/persist/secrets/wyze-bridge.env" "Wyze Bridge Config" "WYZE_EMAIL=\nWYZE_PASSWORD=\nAPI_ID=\nAPI_KEY=\n"
       ;;
     *)

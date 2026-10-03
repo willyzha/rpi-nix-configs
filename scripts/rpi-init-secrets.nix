@@ -100,7 +100,7 @@ EOF
   if [[ "$CURRENT_HOST" =~ ^(ott-pi-primary|ott-pi|pi-remote) ]]; then
     if [ ! -f /persist/secrets/matter-hub.env ]; then
       cat <<'EOF' > /persist/secrets/matter-hub.env
-HAMH_HOME_ASSISTANT_URL=https://hass-ottawa.wzhang.dev
+HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123
 HAMH_HOME_ASSISTANT_ACCESS_TOKEN=
 EOF
       chmod 600 /persist/secrets/matter-hub.env
