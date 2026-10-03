@@ -166,6 +166,14 @@ for host in "${TARGET_HOSTS[@]}"; do
     bash -n "${toplevel}/sw/bin/rpi-mqtt-monitor"
     bash -n "${toplevel}/sw/bin/rpi-services-status"
     bash -n "${toplevel}/sw/bin/rpi-rebuild"
+
+    echo "    [6] Validating Tailscale binary version..."
+    TS_VER=$("${toplevel}/sw/bin/tailscale" version | head -n 1)
+    echo "        Tailscale version: ${TS_VER}"
+    if [[ ! "$TS_VER" =~ ^1\.(10[2-9]|[1-9][0-9]{2}) ]]; then
+      echo "    ERROR: Tailscale version '$TS_VER' is vulnerable (< 1.102.4)!" >&2
+      return 1
+    fi
   }
 
   run_isolated_test

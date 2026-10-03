@@ -3,17 +3,22 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, ... }:
     let
       system = "aarch64-linux";
+      tailscaleOverlay = final: prev: {
+        tailscale = nixpkgs-unstable.legacyPackages.${prev.system}.tailscale;
+      };
     in {
       nixosConfigurations = {
         # Primary Pi (192.168.1.11 - Pi 3B)
         kir-pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
+            { nixpkgs.overlays = [ tailscaleOverlay ]; }
             ./modules/sd-image.nix
             ./hosts/kir-pi-primary/default.nix
             ({ ... }: {
@@ -26,6 +31,7 @@
         kir-pi-secondary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
+            { nixpkgs.overlays = [ tailscaleOverlay ]; }
             ./modules/sd-image.nix
             ./hosts/kir-pi-secondary/default.nix
             ({ ... }: {
@@ -38,6 +44,7 @@
         ott-pi-primary = nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
+            { nixpkgs.overlays = [ tailscaleOverlay ]; }
             ./modules/sd-image.nix
             ./hosts/ott-pi-primary/default.nix
             ({ ... }: {
