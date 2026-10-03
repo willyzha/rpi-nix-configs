@@ -57,10 +57,19 @@ resolve_host_to_ip() {
   return 1
 }
 
-# Resolve target IP from host DNS/mDNS if a target hostname was provided
-if [ "$#" -gt 0 ]; then
+# Skip remote IP resolution for local actions (build-only, build, image, shell, bash)
+IS_LOCAL_ACTION=false
+for arg in "$@"; do
+  if [[ "$arg" =~ ^(build-only|build|image|shell|bash)$ ]]; then
+    IS_LOCAL_ACTION=true
+    break
+  fi
+done
+
+# Resolve target IP from host DNS/mDNS if a target hostname was provided and not a local-only action
+if [ "$IS_LOCAL_ACTION" = "false" ] && [ "$#" -gt 0 ]; then
   FIRST_ARG="$1"
-  if [[ ! "$FIRST_ARG" =~ ^(boot|switch|test|dry-build|dry-activate|build-only|build|image|shell|bash)$ ]]; then
+  if [[ ! "$FIRST_ARG" =~ ^(boot|switch|test|dry-build|dry-activate)$ ]]; then
     if RESOLVED_IP=$(resolve_host_to_ip "$FIRST_ARG"); then
       export TARGET_IP="$RESOLVED_IP"
       echo "Host DNS/mDNS resolved '${FIRST_ARG}' -> ${TARGET_IP}"
