@@ -114,6 +114,8 @@
         ];
         extraOptions = [ 
           "--network=host"
+          "--cap-add=NET_ADMIN"
+          "--cap-add=NET_RAW"
           "--tmpfs=/tmp:exec"
           "--tmpfs=/run:exec"
         ];

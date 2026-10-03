@@ -404,6 +404,22 @@ server:
 EOF
             fi
 
+            if [ ! -f "$TMP_PERSIST/docker/roomassistant/config/local.yaml" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/docker/roomassistant/config/local.yaml"
+# Room Assistant starter config
+global:
+  integrations:
+    - homeAssistant
+    - bluetoothLowEnergy
+
+homeAssistant:
+  mqttUrl: 'mqtt://127.0.0.1:1883'
+
+bluetoothLowEnergy:
+  hciDeviceId: 0
+EOF
+            fi
+
             umount "$TMP_PERSIST"
             rmdir "$TMP_PERSIST" || true
           fi
