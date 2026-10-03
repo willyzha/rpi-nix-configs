@@ -109,12 +109,12 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   echo "==> Phase 2: Node-Specific Secrets ($HOST)"
 
   case "$HOST" in
-    kir-pi-primary)
+    kir-pi-primary|pi-primary)
       run_wizard "/persist/secrets/keepalived-auth.conf" "rpi-set-keepalived-auth" "Keepalived VRRP Authentication"
       run_wizard "/persist/secrets/nut-monuser-password" "rpi-set-nut-password" "NUT UPS Monitor Password"
       prompt_file "/persist/secrets/espresense-tracker.env" "ESPresense Tracker Config" "MQTT_HOST=\nMQTT_PORT=\nMQTT_USER=\nMQTT_PASS=\n"
       ;;
-    kir-pi-secondary)
+    kir-pi-secondary|pi-secondary)
       run_wizard "/persist/secrets/keepalived-auth.conf" "rpi-set-keepalived-auth" "Keepalived VRRP Authentication"
       if [ ! -s "/persist/secrets/wireguard/private.key" ]; then
         echo "Generating WireGuard private key..."
@@ -126,7 +126,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
         echo "  [✓] WireGuard private key already exists."
       fi
       ;;
-    ott-pi-primary)
+    ott-pi-primary|ott-pi|pi-remote)
       prompt_file "/persist/secrets/wg0.conf" "WireGuard Full Client Config" "[Interface]\nPrivateKey = ...\nAddress = ...\n\n[Peer]\nPublicKey = ...\nEndpoint = ...\nAllowedIPs = 0.0.0.0/0\n"
       prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
       prompt_file "/persist/secrets/wyze-bridge.env" "Wyze Bridge Config" "WYZE_EMAIL=\nWYZE_PASSWORD=\nAPI_ID=\nAPI_KEY=\n"
