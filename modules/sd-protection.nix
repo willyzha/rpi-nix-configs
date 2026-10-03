@@ -427,7 +427,7 @@ EOF
 
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
-        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut /root/.cache /var/db/dhcpcd /var/lib/mosquitto
+        mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut /root/.cache /var/db/dhcpcd /var/lib/mosquitto /var/lib/bluetooth
         if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
           rm -f /etc/resolv.conf 2>/dev/null || true
           ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true

@@ -41,4 +41,34 @@
 
   # Enable Raspberry Pi hardware support
   hardware.enableRedistributableFirmware = true;
+
+  # Raspberry Pi 4 Bluetooth UART overlay:
+  # Upstream mainline devicetree defaults uart0_pins to pins <32 33> (TX/RX only),
+  # omitting hardware flow control CTS (30) and RTS (31). The BCM43455 requires RTS/CTS,
+  # causing command 0xfc18 (HCI_VSC_UPDATE_BAUDRATE) to time out without this overlay.
+  hardware.deviceTree = {
+    enable = true;
+    filter = "bcm2711-rpi-4*.dtb";
+    overlays = [
+      {
+        name = "rpi4-bluetooth";
+        dtsText = ''
+          /dts-v1/;
+          /plugin/;
+
+          / {
+              compatible = "brcm,bcm2711";
+
+              fragment@0 {
+                  target = <&uart0_pins>;
+                  __overlay__ {
+                          brcm,pins = <30 31 32 33>;
+                          brcm,pull = <2 0 0 2>;
+                  };
+              };
+          };
+        '';
+      }
+    ];
+  };
 }

@@ -23,6 +23,13 @@
     powerOnBoot = true;
   };
 
+  # Volatile Bluetooth state in RAM: allows bluetoothd to manage state on read-only root
+  fileSystems."/var/lib/bluetooth" = {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0700" ];
+  };
+
 
   # 1. Eclipse Mosquitto MQTT Server (Native)
   services.mosquitto = {
