@@ -34,6 +34,6 @@ in
   };
 
   systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
-    "-/bin/sh -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then mkdir -p /persist/var/cache/restic && date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
+    "-${pkgs.bash}/bin/bash -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then ${pkgs.coreutils}/bin/mkdir -p /persist/var/cache/restic && ${pkgs.coreutils}/bin/date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
   ];
 }

@@ -4,8 +4,9 @@
   imports = [
     ../../modules/common.nix
     ../../modules/sd-protection.nix
-    ../../modules/hardware-rpi4.nix # Assuming Pi 3 or 4; adapt if necessary
+    ../../modules/hardware-rpi4.nix
     ../../modules/docker.nix
+    ../../modules/swag.nix
   ];
 
   networking = {
@@ -51,35 +52,13 @@
     backend = "docker";
     containers = {
 
-      # SWAG (Nginx reverse proxy + Certbot)
-      swag = {
-        image = "ghcr.io/linuxserver/swag:latest";
-        autoStart = true;
-        environmentFiles = [ "/persist/secrets/swag.env" ]; # Store DUCKDNSTOKEN here
-        environment = {
-          PUID = "1000";
-          PGID = "1000";
-          TZ = "America/Toronto";
-          URL = "ottawahome.duckdns.org";
-          SUBDOMAINS = "wildcard";
-          VALIDATION = "duckdns";
-          DISABLE_F2B = "true";
-        };
-        volumes = [
-          "/persist/docker/swag/config:/config"
-          "/persist/docker/swag/logrotate/logrotate.conf:/etc/logrotate.conf"
-          "/persist/docker/swag/logrotate/logrotate.d/fail2ban:/etc/logrotate.d/fail2ban"
-          "/persist/docker/swag/logrotate/logrotate.d/lerotate:/etc/logrotate.d/lerotate"
-          "/persist/docker/swag/logrotate/logrotate.d/nginx:/etc/logrotate.d/nginx"
-          "/persist/docker/swag/logrotate/logrotate.d/php-fpm:/etc/logrotate.d/php-fpm"
-        ];
-        ports = [ "443:443" ];
-        extraOptions = [
-          "--read-only"
-          "--tmpfs=/tmp:exec"
-          "--tmpfs=/run:exec"
-          "--tmpfs=/config/log:size=16M"
-        ];
+      # SWAG overrides for Ottawa DuckDNS
+      swag.environment = {
+        TZ = "America/Toronto";
+        URL = "ottawahome.duckdns.org";
+        VALIDATION = "duckdns";
+        DNSPLUGIN = lib.mkForce "";
+        PROPAGATION = lib.mkForce "";
       };
 
       # Home Assistant Matter Hub

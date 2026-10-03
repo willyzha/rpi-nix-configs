@@ -12,7 +12,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - [**NUT Server**](https://networkupstools.org/): Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
-  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
+  - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
   - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
@@ -24,7 +24,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
-  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
+  - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
   - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Failover reverse proxy (Port `443`).
@@ -34,7 +34,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Eclipse Mosquitto**](https://mosquitto.org/): Native local MQTT Broker (Port `1883`).
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with exit node support.
   - [**WireGuard**](https://www.wireguard.com/): Kernel VPN integration.
-  - [**MQTT Telemetry Monitor**](monitoring-readme.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, and service health.
+  - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, and service health.
   - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Nginx reverse proxy with automated SSL certificate generation (Port `443`).
@@ -101,7 +101,7 @@ When formatting or flashing an SD card for these configurations, partition label
 
 Building directly on a Raspberry Pi can trigger OOM crashes and heavy SD card swap wear. Instead, we use a containerized cross-compilation environment that builds the system closure on your fast x86_64 host and deploys it over SSH.
 
-> **Note:** For a deep dive into the update mechanics, fallback standalone on-device builds (`sudo rpi-rebuild`), and how the zero-wear lifecycle scripts work under the hood, see the [Full Update Documentation (update-readme.md)](update-readme.md).
+> **Note:** For a deep dive into the update mechanics, fallback standalone on-device builds (`sudo rpi-rebuild`), and how the zero-wear lifecycle scripts work under the hood, see the [Full Update Documentation (docs/updates.md)](docs/updates.md).
 
 ### Method 1: Build & Deploy via Local Repository
 
@@ -253,7 +253,7 @@ Initial setup is fully automated using flashable SD card images released directl
    ```bash
    sudo rpi-onboard
    ```
-   > **Note:** For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (secrets-readme.md)](secrets-readme.md).
+   > **Note:** For a deeper breakdown of how the zero-wear persistence layer works, or how to manually update individual credentials later, see the [Secrets & Persistence Documentation (docs/secrets.md)](docs/secrets.md).
 
 6. **Restart Affected Services & Test Backup**:
    *(Alternatively, simply `sudo reboot` to start all services cleanly with the new secrets).*

@@ -8,6 +8,11 @@ let
     else if hostName == "kir-pi-secondary" || hostName == "pi-secondary" then "Pi Secondary"
     else if hostName == "ott-pi-primary" || hostName == "ott-pi" || hostName == "pi-remote" then "Ott Pi Primary"
     else hostName;
+  hasKeepalived = config.services ? keepalived && config.services.keepalived.enable;
+  hardwareModel =
+    if hostName == "ott-pi-primary" || hostName == "ott-pi" || hostName == "pi-remote"
+    then "Raspberry Pi 4 Model B"
+    else "Raspberry Pi 3 Model B";
   stateTopic = "rpi/${hostName}/state";
   availTopic = "rpi/${hostName}/availability";
 
@@ -59,7 +64,7 @@ let
 {
   "identifiers": ["rpi_${hostName}"],
   "name": "${displayName}",
-  "model": "Raspberry Pi 3 Model B",
+  "model": "${hardwareModel}",
   "manufacturer": "Raspberry Pi Foundation",
   "sw_version": "NixOS 24.05"
 }
@@ -88,6 +93,11 @@ EOF
         $PUB -r -t "rpi/$legacy_host/availability" -n 2>/dev/null || true
         $PUB -r -t "rpi/$legacy_host/state" -n 2>/dev/null || true
       fi
+
+      ${lib.optionalString (!hasKeepalived) ''
+      # Purge VRRP sensor if Keepalived is not enabled on this host
+      $PUB -r -t "homeassistant/sensor/${nodeId}/vrrp_status/config" -n 2>/dev/null || true
+      ''}
     }
 
     publish_all_discovery() {
@@ -105,7 +115,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:cpu-64-bit",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -122,7 +132,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -140,7 +150,7 @@ EOF
   "state_class": "measurement",
   "icon": "mdi:memory",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -157,7 +167,7 @@ EOF
   "device_class": "temperature",
   "state_class": "measurement",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -173,7 +183,7 @@ EOF
   "device_class": "timestamp",
   "icon": "mdi:clock-outline",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -191,12 +201,13 @@ EOF
   "entity_category": "diagnostic",
   "icon": "mdi:cloud-check",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
 )"
 
+      ${lib.optionalString hasKeepalived ''
       # VRRP Role Status Sensor
       publish_discovery "sensor" "vrrp_status" "$(cat <<EOF
 {
@@ -206,13 +217,14 @@ EOF
   "value_template": "{{ value_json.vrrp_status }}",
   "icon": "mdi:server-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "json_attributes_topic": "${stateTopic}",
   "json_attributes_template": "{{ {'virtual_ip': value_json.vrrp_vip} | tojson }}",
   "device": $DEVICE_JSON
 }
 EOF
 )"
+      ''}
 
       # Services Health Sensor
       publish_discovery "sensor" "services_health" "$(cat <<EOF
@@ -223,7 +235,7 @@ EOF
   "value_template": "{{ value_json.services_health }}",
   "icon": "mdi:check-network",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -242,7 +254,7 @@ EOF
   "release_url": "https://github.com/willyzha/rpi-nix-configs/commits/main",
   "entity_picture": "https://raw.githubusercontent.com/NixOS/nixos-artwork/master/logo/nix-snowflake.svg",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "device": $DEVICE_JSON
 }
 EOF
@@ -259,7 +271,7 @@ EOF
   "payload_off": "OFF",
   "device_class": "update",
   "availability_topic": "${availTopic}",
-  "expire_after": 60,
+  "expire_after": 180,
   "json_attributes_topic": "${stateTopic}",
   "json_attributes_template": "{{ {'installed_version': value_json.installed_version, 'latest_version': value_json.latest_version, 'last_checked': value_json.update_last_checked} | tojson }}",
   "device": $DEVICE_JSON
@@ -490,8 +502,8 @@ EOF
           uptime_seconds: ($uptime | tonumber),
           last_boot: (if $boot == "null" then null else $boot end),
           last_backup: (if $backup == "null" then null else $backup end),
-          vrrp_status: $vrrp,
-          vrrp_vip: "192.168.1.9",
+          vrrp_status: (if ${if hasKeepalived then "true" else "false"} then $vrrp else null end),
+          vrrp_vip: (if ${if hasKeepalived then "true" else "false"} then "192.168.1.9" else null end),
           services_health: $svc,
           update_available: $update,
           installed_version: $inst,

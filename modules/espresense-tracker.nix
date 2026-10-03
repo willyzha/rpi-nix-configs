@@ -102,7 +102,7 @@ in {
         RestartSec = "10s";
         DynamicUser = true;
       } // (optionalAttrs (cfg.envFile != null) {
-        EnvironmentFile = [ cfg.envFile ];
+        EnvironmentFile = [ "-${cfg.envFile}" ];
       });
     };
   };

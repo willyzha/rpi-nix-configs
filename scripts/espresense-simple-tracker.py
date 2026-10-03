@@ -188,7 +188,10 @@ if __name__ == "__main__":
     if not DEVICES_TO_TRACK and not TRACK_ALL:
         logger.warning("No DEVICES specified to track, and TRACK_ALL is not enabled. The script won't track anything.")
 
-    client = mqtt.Client(client_id=MQTT_CLIENT_ID)
+    if hasattr(mqtt, "CallbackAPIVersion"):
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=MQTT_CLIENT_ID)
+    else:
+        client = mqtt.Client(client_id=MQTT_CLIENT_ID)
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
         

@@ -20,15 +20,34 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   mount -o remount,rw /
   mount -o remount,rw /boot/firmware
   
+  # Helper to check if a secret file only contains placeholder/default values
+  is_placeholder() {
+    local file=$1
+    if [ ! -s "$file" ]; then
+      return 0
+    fi
+    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com)' "$file" 2>/dev/null; then
+      return 0
+    fi
+    if grep -q -E 'HAMH_HOME_ASSISTANT_ACCESS_TOKEN=$|WYZE_EMAIL=$' "$file" 2>/dev/null; then
+      return 0
+    fi
+    return 1
+  }
+
   # Function to prompt text input and save to file
   prompt_file() {
     local file=$1
     local description=$2
     local template=$3
     
-    if [ -s "$file" ]; then
-      echo "  [✓] $description ($file) already exists. Skipping."
-      return 0
+    if [ -s "$file" ] && ! is_placeholder "$file"; then
+      echo "  [✓] $description ($file) already configured."
+      read -p "      Do you want to reconfigure this? (y/N): " reconf
+      case $reconf in
+        [Yy]* ) ;;
+        * ) echo "      Keeping existing configuration."; return 0;;
+      esac
     fi
     
     echo ""
@@ -42,10 +61,12 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       esac
     done
     
-    if [ ! -z "$template" ]; then
-      echo -e "$template" > "$file"
-    else
-      touch "$file"
+    if [ ! -s "$file" ]; then
+      if [ -n "$template" ]; then
+        echo -e "$template" > "$file"
+      else
+        touch "$file"
+      fi
     fi
     chmod 600 "$file"
     
@@ -60,15 +81,19 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     fi
   }
 
-  # Function to run an existing wizard script if the target file doesn't exist
+  # Function to run an existing wizard script if the target file doesn't exist or is a placeholder
   run_wizard() {
     local file=$1
     local cmd=$2
     local description=$3
     
-    if [ -s "$file" ]; then
-      echo "  [✓] $description ($file) already exists. Skipping."
-      return 0
+    if [ -s "$file" ] && ! is_placeholder "$file"; then
+      echo "  [✓] $description ($file) already configured."
+      read -p "      Do you want to run the $cmd wizard to reconfigure? (y/N): " reconf
+      case $reconf in
+        [Yy]* ) ;;
+        * ) echo "      Keeping existing configuration."; return 0;;
+      esac
     fi
     
     echo ""
