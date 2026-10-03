@@ -24,13 +24,6 @@
     depends = [ "/persist" ];
   };
 
-  fileSystems."/var/lib/AdGuardHome" = {
-    device = "/persist/var/lib/AdGuardHome";
-    options = [ "bind" "nofail" "x-systemd.device-timeout=30s" "x-systemd.requires=persist.mount" "x-systemd.after=persist.mount" ];
-    noCheck = true;
-    depends = [ "/persist" ];
-  };
-
   # ---------------------------------------------------------------------------
   # Native NixOS Services (Substantially saves RAM on 1 GB Pi 3B)
   # ---------------------------------------------------------------------------
@@ -105,12 +98,6 @@
         }
       ];
     };
-  };
-
-  # Disable DynamicUser so AdGuard Home uses /var/lib/AdGuardHome directly on read-only root
-  systemd.services.adguardhome.serviceConfig = {
-    DynamicUser = lib.mkForce false;
-    User = "root";
   };
 
   # 3. Keepalived VRRP Master (~4MB RAM, monitors port 443 for SWAG)

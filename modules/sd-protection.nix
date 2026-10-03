@@ -138,6 +138,18 @@
     options = [ "nosuid" "nodev" "noatime" "mode=0700" "size=2M" ];
   };
 
+  # Volatile AdGuard Home state in RAM: completely ephemeral, zero SD wear, 100% declarative
+  fileSystems."/var/lib/AdGuardHome" = lib.mkIf (config.services ? adguardhome && config.services.adguardhome.enable) {
+    device = "tmpfs";
+    fsType = "tmpfs";
+    options = [ "nosuid" "nodev" "noatime" "mode=0755" "size=64M" ];
+  };
+
+  systemd.services.adguardhome.serviceConfig = lib.mkIf (config.services ? adguardhome && config.services.adguardhome.enable) {
+    DynamicUser = lib.mkForce false;
+    User = "root";
+  };
+
   # 6. Persist SSH host keys so SSH client fingerprints don't change on reboot
   services.openssh.hostKeys = [
     {
@@ -159,7 +171,6 @@
     "d /persist/var/lib/docker 0710 root root -"
     "d /persist-raw/var/lib/docker 0710 root root -"
     "d /persist/var/lib/tailscale 0700 root root -"
-    "d /persist/var/lib/AdGuardHome 0755 root root -"
     "d /persist/docker 0755 root root -"
     "d /run/resolvconf 0755 root root -"
     "f /run/resolvconf/resolv.conf 0644 root root -"
