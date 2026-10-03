@@ -152,7 +152,7 @@ If you have cloned this repository, use the convenient wrapper script:
 
 You do **not** need to clone this repository to deploy updates! By using `docker run` directly, the container automatically pulls the latest `main` branch configuration straight from GitHub. 
 
-*(Note: The named volumes `rpi-nix-store` and `rpi-nix-cache` cache downloaded dependencies across runs. Do not bind-mount an empty host directory directly to `/nix`, as that masks the container's internal Nix store and shell.)*
+Because `--rm` is used and no storage volumes are mounted, the deployment runs completely statelessly and leaves zero residual files, directories, or cache on your host when finished.
 
 > **DNS / mDNS Resolution:** Because Docker containers run in an isolated environment without an mDNS daemon, `.local` hostnames must be resolved on your host machine. Use `getent hosts <node>.local | awk '{print $1}'` (standard on Linux) to resolve the IP and pass it into `TARGET_IP`.
 
@@ -168,8 +168,6 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v rpi-nix-store:/nix \
-  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-primary switch
 ```
 
@@ -187,8 +185,6 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v rpi-nix-store:/nix \
-  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary switch
 ```
 
@@ -206,8 +202,6 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v rpi-nix-store:/nix \
-  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest ott-pi-primary switch
 ```
 
