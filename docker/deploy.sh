@@ -396,6 +396,8 @@ ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "nix-env -p /nix/var/nix/profiles/sy
 # Run switch-to-configuration
 if [[ "$ACTION" != "dry-build" ]]; then
   ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "$TOPLEVEL/bin/switch-to-configuration $ACTION"
+  # Invalidate stale update cache so the next check immediately reports fresh generation status
+  ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "rm -f /run/rpi-check-update.cache 2>/dev/null; rpi-check-update --json >/dev/null 2>&1 || true"
 fi
 
 # Commit any pending overlay changes to SD card if tool is installed

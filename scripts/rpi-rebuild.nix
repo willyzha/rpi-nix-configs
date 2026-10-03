@@ -232,6 +232,7 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
 
   SUCCESS=true
   remove_swap
+  rm -f /run/rpi-check-update.cache 2>/dev/null || true
 
   if [ "$ACTION" = "boot" ]; then
     echo "==> Rebuild successful! System generation updated."
