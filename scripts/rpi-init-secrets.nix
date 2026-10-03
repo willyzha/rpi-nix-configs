@@ -80,7 +80,7 @@ EOF
     echo "  [OK]      /persist/secrets/mqtt.env"
   fi
 
-  CURRENT_HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
+  CURRENT_HOST="''${HOST:-$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)}"
   if [[ "$CURRENT_HOST" =~ ^(kir-pi-primary|pi-primary) ]]; then
     if [ ! -f /persist/secrets/espresense-tracker.env ]; then
       cat <<'EOF' > /persist/secrets/espresense-tracker.env
@@ -97,7 +97,7 @@ EOF
     fi
   fi
 
-  if [[ "$CURRENT_HOST" =~ ^(ott-pi|pi-remote) ]]; then
+  if [[ "$CURRENT_HOST" =~ ^(ott-pi-primary|ott-pi|pi-remote) ]]; then
     if [ ! -f /persist/secrets/matter-hub.env ]; then
       cat <<'EOF' > /persist/secrets/matter-hub.env
 HAMH_HOME_ASSISTANT_URL=https://hass-ottawa.wzhang.dev
@@ -123,18 +123,20 @@ EOF
     fi
 
     if [ ! -f /persist/secrets/wg0.conf ]; then
-      cat <<'EOF' > /persist/secrets/wg0.conf
+      DUMMY_KEY=$(${pkgs.wireguard-tools}/bin/wg genkey)
+      DUMMY_PUB=$(${pkgs.wireguard-tools}/bin/wg pubkey <<< "$DUMMY_KEY")
+      cat <<EOF > /persist/secrets/wg0.conf
 [Interface]
-PrivateKey = changeme
+PrivateKey = $DUMMY_KEY
 Address = 10.13.13.2/24
 
 [Peer]
-PublicKey = changeme
-Endpoint = example.com:51820
-AllowedIPs = 0.0.0.0/0
+PublicKey = $DUMMY_PUB
+Endpoint = 127.0.0.1:51820
+AllowedIPs = 10.13.13.1/32
 EOF
       chmod 600 /persist/secrets/wg0.conf
-      echo "  [CREATED] /persist/secrets/wg0.conf (default stub)"
+      echo "  [CREATED] /persist/secrets/wg0.conf (starter stub)"
     else
       echo "  [OK]      /persist/secrets/wg0.conf"
     fi

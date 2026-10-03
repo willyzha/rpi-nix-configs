@@ -323,8 +323,42 @@ Initial setup is fully automated using flashable SD card images released directl
 
 ---
 
+## Automated Testing & CI
+
+### 1. Fast Systemd Container Integration Test
+
+A dedicated integration test runner ([`tests/test-systemd-container.sh`](tests/test-systemd-container.sh)) validates the complete system closure, in-container activation, starter secret stubs, onboarding wizard, custom utility syntax, and systemd service declarations:
+
+```bash
+# Test all nodes in Docker (fast ~15s cached):
+./docker-rebuild.sh test-container
+
+# Test a single node:
+./docker-rebuild.sh ott-pi-primary test-container
+./docker-rebuild.sh kir-pi-primary test-container
+./docker-rebuild.sh kir-pi-secondary test-container
+```
+
+**What the test verifies:**
+1. **Flake Evaluation**: Evaluates NixOS configuration without syntax or attribute errors.
+2. **System Closure Build**: Builds system toplevel (`system.build.toplevel`).
+3. **In-Container Activation**: Boots the activation script in an isolated container environment.
+4. **Starter Secret Stubs**: Runs `rpi-init-secrets`, verifies `0700` secret directory permissions, and validates that all required secret files and starter keypairs exist so no services crash on first boot.
+5. **Onboarding Check**: Executes `rpi-onboard --check` non-interactively to ensure all secrets are accounted for.
+6. **Utility Syntax**: Validates bash syntax (`bash -n`) across all custom management scripts (`rpi-check-update`, `rpi-mqtt-monitor`, `rpi-persist-save`, `rpi-services-status`, `rpi-rebuild`).
+7. **Service Unit Declarations**: Verifies that all expected systemd unit files are declared and compiled into the target system profile.
+
+### 2. Daily GitHub Actions Workflow (Zero-Waste Gating)
+
+A scheduled GitHub Actions workflow ([`.github/workflows/daily-test.yml`](.github/workflows/daily-test.yml)) runs daily at 04:00 UTC on native `ubuntu-24.04-arm` runners.
+
+- **24-Hour Commit Gating**: A lightweight gatekeeper step runs first. If no commits were pushed to `main` in the last 24 hours, the test suite is skipped automatically in ~3 seconds, consuming zero ARM runner minutes.
+- **Manual & PR Triggers**: Can be triggered manually via **Actions -> Daily Systemd Integration Test -> Run workflow** or on any pull request targeting `main`.
+
+---
+
 ### Automated Image Generation (GitHub Actions)
 
 Images are built automatically by GitHub Actions:
-- **On Tag**: Push any version tag (e.g. `git tag v1.0.0 && git push --tags`) to trigger a build and publish a GitHub Release with the flashable images and checksums.
+- **On Tag**: Push any version tag (e.g. `git tag v0.2.6 && git push --tags`) to trigger a build and publish a GitHub Release with the flashable images and checksums.
 - **On Demand**: Go to the **Actions** tab in GitHub -> select **Build & Release Flashable SD Images** -> click **Run workflow** -> choose `kir-pi-primary`, `kir-pi-secondary`, `ott-pi-primary`, or `all`.

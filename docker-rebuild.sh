@@ -60,7 +60,7 @@ resolve_host_to_ip() {
 # Skip remote IP resolution for local actions (build-only, build, image, shell, bash)
 IS_LOCAL_ACTION=false
 for arg in "$@"; do
-  if [[ "$arg" =~ ^(build-only|build|image|shell|bash)$ ]]; then
+  if [[ "$arg" =~ ^(build-only|build|image|shell|bash|test-container)$ ]]; then
     IS_LOCAL_ACTION=true
     break
   fi
