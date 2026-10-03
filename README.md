@@ -152,7 +152,7 @@ If you have cloned this repository, use the convenient wrapper script:
 
 You do **not** need to clone this repository to deploy updates! By using `docker run` directly, the container automatically pulls the latest `main` branch configuration straight from GitHub. 
 
-*(Note: The `/tmp/rpi-nix-store` and `/tmp/rpi-nix-cache` paths bind-mount to your host's temporary directory. This prevents permanent storage bloat on your machine, but means the cache will be cleared when your host reboots. If your host's `/tmp` is a RAM-disk, ensure you have at least 4GB of free RAM to hold the Nix build closure!)*
+*(Note: The named volumes `rpi-nix-store` and `rpi-nix-cache` cache downloaded dependencies across runs. Do not bind-mount an empty host directory directly to `/nix`, as that masks the container's internal Nix store and shell.)*
 
 > **DNS / mDNS Resolution:** Because Docker containers run in an isolated environment without an mDNS daemon, `.local` hostnames must be resolved on your host machine. Use `getent hosts <node>.local | awk '{print $1}'` (standard on Linux) to resolve the IP and pass it into `TARGET_IP`.
 
@@ -168,8 +168,8 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v /tmp/rpi-nix-store:/nix \
-  -v /tmp/rpi-nix-cache:/root/.cache \
+  -v rpi-nix-store:/nix \
+  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-primary switch
 ```
 
@@ -187,8 +187,8 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v /tmp/rpi-nix-store:/nix \
-  -v /tmp/rpi-nix-cache:/root/.cache \
+  -v rpi-nix-store:/nix \
+  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest kir-pi-secondary switch
 ```
 
@@ -206,8 +206,8 @@ docker run --rm --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
-  -v /tmp/rpi-nix-store:/nix \
-  -v /tmp/rpi-nix-cache:/root/.cache \
+  -v rpi-nix-store:/nix \
+  -v rpi-nix-cache:/root/.cache \
   ghcr.io/willyzha/rpi-nix-builder:latest ott-pi-primary switch
 ```
 
