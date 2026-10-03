@@ -301,13 +301,18 @@ Initial setup is fully automated using flashable SD card images released directl
    </details>
 
    <details>
-   <summary><b>Enable on <code>ott-pi-primary</code></b> (Exit Node)</summary>
+   <summary><b>Enable on <code>ott-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
 
    ```bash
-   sudo tailscale up --advertise-exit-node
+   sudo tailscale up --advertise-exit-node --advertise-routes=192.168.2.0/24
    ```
 
-   > **Note:** Do not pass `--accept-routes` on `ott-pi-primary` if other nodes on your Tailnet advertise the `192.168.2.0/24` subnet, as Tailscale's routing policy table will intercept traffic destined for the local LAN.
+   > **Subnet Route Approval**:
+   > 1. Go to your [Tailscale Admin Console](https://login.tailscale.com/admin/machines).
+   > 2. Click **...** next to **`ott-pi-primary`** -> **Edit route settings...** -> check **`192.168.2.0/24`**.
+   > 3. If replacing an older node (e.g. `ottawahome`), remove or disable its routes so Tailscale routes `192.168.2.x` traffic directly to the new Pi.
+   >
+   > **Note:** Do not pass `--accept-routes` on `ott-pi-primary` itself, as accepting routes for its own physical LAN causes Tailscale's routing policy table to intercept local traffic.
 
    </details>
 

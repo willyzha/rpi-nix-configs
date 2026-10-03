@@ -42,6 +42,7 @@
   # 2. Tailscale (Native)
   services.tailscale = {
     enable = true;
+    useRoutingFeatures = "server"; # Allow exit node and subnet router functionality
   };
 
   # 3. WireGuard (Native)
