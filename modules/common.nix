@@ -49,6 +49,12 @@
     memoryPercent = 100;
   };
 
+  # Prevent dirty page write spikes on slow SD cards from starving I/O and tripping the 14s watchdog
+  boot.kernel.sysctl = {
+    "vm.dirty_background_bytes" = 16777216; # 16 MB: flush early in small increments
+    "vm.dirty_bytes" = 33554432;            # 32 MB: throttle writes before dirty buffer grows too large
+  };
+
   # Nix configuration
   nix = {
     settings = {
