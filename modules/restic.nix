@@ -2,10 +2,6 @@
 
 let
   hostName = config.networking.hostName;
-  backupTarget =
-    if hostName == "kir-pi-primary" then "pi-primary"
-    else if hostName == "kir-pi-secondary" then "pi-secondary"
-    else hostName;
   calendarTime =
     if hostName == "kir-pi-secondary" then "03:30"
     else "03:00";
@@ -14,7 +10,7 @@ in
   # Native Restic backup of /persist to Dropbox via Rclone
   services.restic.backups.persist = {
     initialize = true;
-    repository = lib.mkDefault "rclone:dropbox:backups/${backupTarget}";
+    repository = lib.mkDefault "rclone:dropbox:backups/${hostName}";
     rcloneConfigFile = "/persist/secrets/rclone.conf";
     passwordFile = "/persist/secrets/restic-password";
     paths = [

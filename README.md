@@ -265,7 +265,7 @@ Initial setup is fully automated using flashable SD card images released directl
    sudo systemctl restart keepalived
    sudo systemctl start restic-backups-persist.service
    sudo journalctl -u restic-backups-persist.service -f
-   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/pi-primary --password-file /persist/secrets/restic-password snapshots
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-primary --password-file /persist/secrets/restic-password snapshots
    ```
 
    </details>
@@ -277,7 +277,7 @@ Initial setup is fully automated using flashable SD card images released directl
    sudo systemctl restart keepalived wireguard-wg0
    sudo systemctl start restic-backups-persist.service
    sudo journalctl -u restic-backups-persist.service -f
-   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/pi-secondary --password-file /persist/secrets/restic-password snapshots
+   sudo RCLONE_CONFIG=/persist/secrets/rclone.conf restic -r rclone:dropbox:backups/kir-pi-secondary --password-file /persist/secrets/restic-password snapshots
    ```
 
    </details>
