@@ -5,12 +5,25 @@ pkgs.writeShellScriptBin "rpi-services-status" ''
   set -euo pipefail
 
   HOST="$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)"
-  SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "rpi-mqtt-monitor")
-
-  # tailscaled and upsd only run on pi-primary
-  if [ "$HOST" = "pi-primary" ]; then
-    SERVICES+=("tailscaled" "upsd")
-  fi
+  case "$HOST" in
+    kir-pi-primary|pi-primary)
+      SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "rpi-mqtt-monitor" "tailscaled" "upsd")
+      ;;
+    kir-pi-secondary|pi-secondary)
+      SERVICES=("keepalived" "adguardhome" "docker" "docker-swag" "rpi-mqtt-monitor" "tailscaled")
+      ;;
+    ott-pi-primary|ott-pi|pi-remote)
+      SERVICES=("docker" "docker-swag" "rpi-mqtt-monitor" "tailscaled" "mosquitto")
+      ;;
+    *)
+      SERVICES=("docker" "rpi-mqtt-monitor")
+      for candidate in keepalived adguardhome tailscaled upsd mosquitto docker-swag; do
+        if systemctl is-enabled --quiet "$candidate" 2>/dev/null; then
+          SERVICES+=("$candidate")
+        fi
+      done
+      ;;
+  esac
 
   FAILED=()
   TOTAL=0

@@ -285,6 +285,7 @@ if ! nix eval --extra-experimental-features "nix-command flakes" "${FLAKE_REF}#n
   echo -e "  Available configurations in flake:" >&2
   echo -e "    - kir-pi-primary" >&2
   echo -e "    - kir-pi-secondary" >&2
+  echo -e "    - ott-pi-primary" >&2
   exit 1
 fi
 
