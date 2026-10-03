@@ -1,0 +1,94 @@
+name: Daily Systemd Integration Test
+
+on:
+  schedule:
+    # Run daily at 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target node configuration to test (or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ott-pi-primary
+          - kir-pi-primary
+          - kir-pi-secondary
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  check-commits:
+    name: Check New Commits (Daily Gate)
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Check for commits in the last 24 hours
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Not a scheduled run (event: ${{ github.event_name }}). Triggering full test suite."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 86400 seconds = 24 hours
+          CUTOFF=$(date -d "24 hours ago" +%s)
+          LATEST_COMMIT_TIME=$(git log -1 --format=%ct)
+          echo "Latest commit timestamp: $LATEST_COMMIT_TIME ($(date -d @$LATEST_COMMIT_TIME))"
+          echo "24h ago cutoff timestamp: $CUTOFF ($(date -d @$CUTOFF))"
+
+          if [ "$LATEST_COMMIT_TIME" -ge "$CUTOFF" ]; then
+            echo "New commits detected in the last 24 hours! Running test suite."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No new commits in the last 24 hours. Skipping daily test run to conserve resources."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    name: Systemd Container Integration Test
+    needs: check-commits
+    if: needs.check-commits.outputs.should_run == 'true'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            substituters = https://cache.nixos.org https://nix-community.cachix.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+
+      - name: Setup Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v2
+
+      - name: Run Nix Flake Check
+        run: |
+          echo "==> Running nix flake check..."
+          nix flake check
+
+      - name: Run Systemd Container Integration Tests
+        run: |
+          chmod +x ./tests/test-systemd-container.sh
+          TARGET="${{ github.event.inputs.target || 'all' }}"
+          if [ "$TARGET" = "all" ]; then
+            ./tests/test-systemd-container.sh
+          else
+            ./tests/test-systemd-container.sh "$TARGET"
+          fi

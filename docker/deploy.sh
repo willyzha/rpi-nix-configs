@@ -73,7 +73,7 @@ is_ip_or_address() {
 
 is_action() {
   local val="$1"
-  [[ "$val" =~ ^(boot|switch|test|dry-build|dry-activate|build-only|build|image|shell|bash)$ ]]
+  [[ "$val" =~ ^(boot|switch|test|dry-build|dry-activate|build-only|build|image|shell|bash|test-container)$ ]]
 }
 
 # 1. Parse Arguments & Environment Variables
@@ -193,7 +193,7 @@ fi
 # ------------------------------------------------------------------------------
 # Auto-detect Target Host & IP if needed
 # ------------------------------------------------------------------------------
-if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" ]]; then
+if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" && "$ACTION" != "test-container" ]]; then
   # If TARGET_IP is not given, resolution failed
   if [ -z "$TARGET_IP" ]; then
     if [ -n "$TARGET_HOST" ]; then
@@ -268,6 +268,15 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     fi
   fi
 else
+  # Action: test-container (In-container integration test)
+  if [ "$ACTION" = "test-container" ]; then
+    if [ -n "$TARGET_HOST" ]; then
+      exec /workspace/tests/test-systemd-container.sh "$TARGET_HOST"
+    else
+      exec /workspace/tests/test-systemd-container.sh
+    fi
+  fi
+
   # For local-only actions (build-only, image)
   TARGET_HOST="${TARGET_HOST:-kir-pi-primary}"
 
@@ -309,9 +318,11 @@ if [ "$ACTION" = "image" ]; then
   echo -e "\n${GREEN}${BOLD}==> SD Card Image Built Successfully!${NC}"
   IMAGE_FILE=$(find "${OUTPUT_DIR}/${TARGET_HOST}-sd-image" -name "*.img.zst" -o -name "*.img" 2>/dev/null | head -n 1 || true)
   if [ -n "$IMAGE_FILE" ]; then
-    echo -e "  Image Location: ${BOLD}$IMAGE_FILE${NC}"
+    HOST_IMAGE_NAME="$(basename "$IMAGE_FILE")"
+    cp -L "$IMAGE_FILE" "${OUTPUT_DIR}/${HOST_IMAGE_NAME}" 2>/dev/null || true
+    echo -e "  Image Location: ${BOLD}${OUTPUT_DIR}/${HOST_IMAGE_NAME}${NC}"
     echo -e "  To flash to an SD card (e.g. /dev/sdX):"
-    echo -e "    zstdcat $IMAGE_FILE | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync"
+    echo -e "    zstdcat ${OUTPUT_DIR}/${HOST_IMAGE_NAME} | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync"
   else
     echo -e "  Image outputs available in: ${BOLD}${OUTPUT_DIR}/${TARGET_HOST}-sd-image${NC}"
   fi

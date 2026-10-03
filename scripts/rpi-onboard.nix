@@ -12,13 +12,8 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   echo "        Raspberry Pi NixOS Node Onboarding Wizard               "
   echo "================================================================"
   
-  HOST=$(hostname)
+  HOST="''${HOST:-$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)}"
   echo "Detected Node: $HOST"
-  
-  # Initialize secret directories and remount read-write if necessary
-  rpi-init-secrets
-  mount -o remount,rw /
-  mount -o remount,rw /boot/firmware
   
   # Helper to check if a secret file only contains placeholder/default values
   is_placeholder() {
@@ -26,7 +21,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     if [ ! -s "$file" ]; then
       return 0
     fi
-    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com)' "$file" 2>/dev/null; then
+    if grep -q -E '(changeme|example\.com|192\.168\.1\.X|admin@example\.com|127\.0\.0\.1:51820)' "$file" 2>/dev/null; then
       return 0
     fi
     if grep -q -E 'HAMH_HOME_ASSISTANT_ACCESS_TOKEN=$|WYZE_EMAIL=$' "$file" 2>/dev/null; then
@@ -34,6 +29,56 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     fi
     return 1
   }
+
+  check_secret() {
+    local file="$1"
+    local desc="$2"
+    if [ ! -f "$file" ]; then
+      printf "  %-35s : [MISSING]\n" "$desc"
+    elif is_placeholder "$file"; then
+      printf "  %-35s : [STARTER / PLACEHOLDER]\n" "$desc"
+    else
+      printf "  %-35s : [CONFIGURED]\n" "$desc"
+    fi
+  }
+
+  if [[ "''${1:-}" == "--check" || "''${1:-}" == "check" ]]; then
+    echo "================================================================"
+    echo "       Onboarding Status Check: $HOST                           "
+    echo "================================================================"
+    echo "Core Secrets:"
+    check_secret "/persist/secrets/mqtt.env" "MQTT Credentials"
+    check_secret "/persist/secrets/swag.env" "SWAG Reverse Proxy"
+    check_secret "/persist/secrets/restic-password" "Restic Encryption Password"
+    check_secret "/persist/secrets/rclone.conf" "Rclone Backup Config"
+    echo ""
+    echo "Node-Specific Secrets ($HOST):"
+    case "$HOST" in
+      kir-pi-primary|pi-primary)
+        check_secret "/persist/secrets/keepalived-auth.conf" "Keepalived VRRP Auth"
+        check_secret "/persist/secrets/nut-monuser-password" "NUT UPS Password"
+        check_secret "/persist/secrets/espresense-tracker.env" "ESPresense Tracker"
+        ;;
+      kir-pi-secondary|pi-secondary)
+        check_secret "/persist/secrets/keepalived-auth.conf" "Keepalived VRRP Auth"
+        check_secret "/persist/secrets/wireguard/private.key" "WireGuard Server Key"
+        ;;
+      ott-pi-primary|ott-pi|pi-remote)
+        check_secret "/persist/secrets/wg0.conf" "WireGuard Client Config"
+        check_secret "/persist/secrets/matter-hub.env" "Matter Hub Config"
+        check_secret "/persist/secrets/wyze-bridge.env" "Wyze Bridge Config"
+        ;;
+    esac
+    echo "================================================================"
+    exit 0
+  fi
+
+  # Initialize secret directories and remount read-write if necessary
+  rpi-init-secrets
+  mount -o remount,rw / 2>/dev/null || true
+  if mountpoint -q /boot/firmware; then
+    mount -o remount,rw /boot/firmware 2>/dev/null || true
+  fi
 
   # Function to prompt text input and save to file
   prompt_file() {
@@ -121,7 +166,11 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   fi
 
   # MQTT Monitor
-  prompt_file "/persist/secrets/mqtt.env" "MQTT Telemetry Monitor Credentials" "MQTT_HOST=\nMQTT_PORT=1883\nMQTT_USER=\nMQTT_PASS=\n"
+  if [[ "$HOST" =~ ^(ott-pi|pi-remote) ]]; then
+    prompt_file "/persist/secrets/mqtt.env" "MQTT Telemetry Monitor Credentials (local Mosquitto)" "MQTT_HOST=127.0.0.1\nMQTT_PORT=1883\nMQTT_USER=\nMQTT_PASS=\n"
+  else
+    prompt_file "/persist/secrets/mqtt.env" "MQTT Telemetry Monitor Credentials" "MQTT_HOST=192.168.1.X\nMQTT_PORT=1883\nMQTT_USER=\nMQTT_PASS=\n"
+  fi
   
   # SWAG Reverse Proxy
   run_wizard "/persist/secrets/swag.env" "rpi-set-swag" "SWAG Reverse Proxy Setup"
@@ -153,7 +202,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       ;;
     ott-pi-primary|ott-pi|pi-remote)
       prompt_file "/persist/secrets/wg0.conf" "WireGuard Full Client Config" "[Interface]\nPrivateKey = ...\nAddress = ...\n\n[Peer]\nPublicKey = ...\nEndpoint = ...\nAllowedIPs = 0.0.0.0/0\n"
-      prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
+      prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
       prompt_file "/persist/secrets/wyze-bridge.env" "Wyze Bridge Config" "WYZE_EMAIL=\nWYZE_PASSWORD=\nAPI_ID=\nAPI_KEY=\n"
       ;;
     *)
@@ -164,11 +213,14 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
   echo ""
   echo "==> Phase 3: Finalizing Setup"
   echo "Saving all changes to physical SD card..."
-  rpi-persist-save secrets
+  rpi-persist-save
   
   echo "Restoring read-only mounts..."
-  mount -o remount,ro /
-  mount -o remount,ro /boot/firmware
+  sync
+  if mountpoint -q /boot/firmware; then
+    mount -o remount,ro /boot/firmware 2>/dev/null || true
+  fi
+  mount -o remount,ro / 2>/dev/null || true
   
   echo ""
   echo "================================================================"

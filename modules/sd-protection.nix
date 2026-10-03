@@ -100,9 +100,9 @@
   system.activationScripts.ensurePersistMountPoints = lib.stringAfter [ ] ''
     ${pkgs.util-linux}/bin/mount -o remount,rw / || true
     mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/AdGuardHome /var/lib/tailscale
-    if [ ! -L /etc/resolv.conf ]; then
-      rm -f /etc/resolv.conf
-      ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+    if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
+      rm -f /etc/resolv.conf 2>/dev/null || true
+      ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true
     fi
   '';
 
@@ -318,6 +318,40 @@ EOF
               chmod 600 "$TMP_PERSIST/secrets/swag.env"
             fi
 
+            if [ ! -f "$TMP_PERSIST/secrets/matter-hub.env" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/matter-hub.env"
+HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123
+HAMH_HOME_ASSISTANT_ACCESS_TOKEN=
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/matter-hub.env"
+            fi
+
+            if [ ! -f "$TMP_PERSIST/secrets/wyze-bridge.env" ]; then
+              cat <<'EOF' > "$TMP_PERSIST/secrets/wyze-bridge.env"
+WYZE_EMAIL=
+WYZE_PASSWORD=
+API_ID=
+API_KEY=
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/wyze-bridge.env"
+            fi
+
+            if [ ! -f "$TMP_PERSIST/secrets/wg0.conf" ]; then
+              DUMMY_KEY=$(${pkgs.wireguard-tools}/bin/wg genkey)
+              DUMMY_PUB=$(${pkgs.wireguard-tools}/bin/wg pubkey <<< "$DUMMY_KEY")
+              cat <<EOF > "$TMP_PERSIST/secrets/wg0.conf"
+[Interface]
+PrivateKey = $DUMMY_KEY
+Address = 10.13.13.2/24
+
+[Peer]
+PublicKey = $DUMMY_PUB
+Endpoint = 127.0.0.1:51820
+AllowedIPs = 10.13.13.1/32
+EOF
+              chmod 600 "$TMP_PERSIST/secrets/wg0.conf"
+            fi
+
             # Container persistence directories and volume stubs
             mkdir -p \
               "$TMP_PERSIST/docker/swag/config" \
@@ -355,9 +389,9 @@ EOF
         # Pre-create mount point directories on root filesystem for bind mounts
         ${pkgs.util-linux}/bin/mount -o remount,rw / || true
         mkdir -p /persist /persist-raw /run/persist-overlay /var/lib/tailscale /var/lib/AdGuardHome /var/lib/docker /nix/var/nix/daemon-socket /var/lib/nut
-        if [ ! -L /etc/resolv.conf ]; then
-          rm -f /etc/resolv.conf
-          ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf
+        if [ ! -L /etc/resolv.conf ] && [ -z "$container" ]; then
+          rm -f /etc/resolv.conf 2>/dev/null || true
+          ln -sf /run/resolvconf/resolv.conf /etc/resolv.conf 2>/dev/null || true
         fi
         ${pkgs.util-linux}/bin/mount -o remount,ro / || true
 
