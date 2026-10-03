@@ -18,3 +18,9 @@ result-*
 .idea/
 *.swp
 *~
+
+# Python virtual environments and bytecode
+venv/
+.venv/
+*.pyc
+__pycache__/
