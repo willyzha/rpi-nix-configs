@@ -49,7 +49,7 @@
   # 2. AdGuard Home (~15MB RAM, replaces Pi-hole, web UI on port 3000)
   services.adguardhome = {
     enable = true;
-    mutableSettings = true;
+    mutableSettings = false;
     port = 3000; # Web UI accessible at http://192.168.1.11:3000
     settings = {
       dns = {
