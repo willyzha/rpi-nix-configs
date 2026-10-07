@@ -8,6 +8,7 @@
     ../../modules/docker.nix
     ../../modules/adguard.nix
     ../../modules/swag.nix
+    ../../modules/cloudflare-ddns.nix
   ];
 
   networking = {
@@ -73,6 +74,9 @@
       '';
     };
   };
+
+  # 2. Cloudflare Dynamic DNS Updater (Secondary Node - Redundant HA)
+  services.cloudflare-ddns.enable = true;
 
   system.stateVersion = "24.05";
 }

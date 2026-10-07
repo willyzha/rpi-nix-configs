@@ -13,6 +13,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - [**NUT Server**](https://networkupstools.org/): Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
   - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
+  - [**Cloudflare Dynamic DNS**](https://github.com/skud/cloudflare-dyndns): Native DDNS client updating Cloudflare A records (`example.com`, `*.example.com`) to the Kirkland public WAN IP every 5 minutes with zero SD wear (ephemeral RAM cache).
   - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:00` daily timer).
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
@@ -24,6 +25,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
+  - [**Cloudflare Dynamic DNS**](https://github.com/skud/cloudflare-dyndns): Redundant high-availability DDNS updater mirroring primary node with staggered check timers and zero SD wear.
   - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
   - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
 - **Docker Containers**:

@@ -93,7 +93,13 @@ EOF
 dns_cloudflare_api_token = $TOKEN
 EOF
       chmod 600 "$CF_INI"
-      echo "==> Stored Cloudflare token in $CF_INI"
+      echo -n "$TOKEN" > /persist/secrets/cloudflare-api-token
+      chmod 600 /persist/secrets/cloudflare-api-token
+      cat <<EOF > /persist/secrets/cloudflare.env
+CLOUDFLARE_API_TOKEN=$TOKEN
+EOF
+      chmod 600 /persist/secrets/cloudflare.env
+      echo "==> Stored Cloudflare token in $CF_INI and /persist/secrets/cloudflare.env"
     fi
   fi
 
@@ -134,7 +140,11 @@ EOF
   echo "==> SWAG credentials and volume stubs successfully created in /persist."
   if command -v rpi-persist-save >/dev/null 2>&1; then
     echo "==> Committing SWAG secrets and proxy config to SD card..."
-    rpi-persist-save secrets/swag.env docker/swag/config/dns-conf docker/swag/config/nginx/proxy-confs
+    rpi-persist-save secrets/swag.env secrets/cloudflare.env docker/swag/config/dns-conf docker/swag/config/nginx/proxy-confs
+  fi
+  if systemctl list-unit-files | grep -q cloudflare-dyndns.service; then
+    echo "==> Triggering cloudflare-dyndns.service..."
+    systemctl restart cloudflare-dyndns.service 2>/dev/null || true
   fi
   if systemctl list-unit-files | grep -q docker-swag.service; then
     echo "==> Resetting failed units and restarting docker-swag.service..."

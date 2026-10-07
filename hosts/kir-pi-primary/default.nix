@@ -9,6 +9,7 @@
     ../../modules/adguard.nix
     ../../modules/swag.nix
     ../../modules/espresense-tracker.nix
+    ../../modules/cloudflare-ddns.nix
   ];
 
   networking = {
@@ -94,6 +95,8 @@
     };
   };
 
+  # 5. Cloudflare Dynamic DNS Updater (Primary Node)
+  services.cloudflare-ddns.enable = true;
 
   # ---------------------------------------------------------------------------
   # Remaining Docker Containers (Kept in Docker per configuration)

@@ -66,6 +66,32 @@ EOF
     echo "  [OK]      /persist/secrets/swag.env"
   fi
 
+  # Cloudflare API Token for DDNS
+  if [ ! -f /persist/secrets/cloudflare.env ]; then
+    CF_INI="/persist/docker/swag/config/dns-conf/cloudflare.ini"
+    CF_TOKEN=""
+    if [ -f "$CF_INI" ]; then
+      CF_TOKEN=$(grep -E 'dns_cloudflare_api_token' "$CF_INI" | awk -F= '{gsub(/[ \t]/,"",$2); print $2}' || true)
+    elif [ -f /persist/secrets/cloudflare-api-token ]; then
+      CF_TOKEN=$(cat /persist/secrets/cloudflare-api-token | tr -d '\r\n[:space:]')
+    fi
+    if [ -n "$CF_TOKEN" ]; then
+      cat <<EOF > /persist/secrets/cloudflare.env
+CLOUDFLARE_API_TOKEN=$CF_TOKEN
+EOF
+      chmod 600 /persist/secrets/cloudflare.env
+      echo "  [CREATED] /persist/secrets/cloudflare.env (extracted from Cloudflare config)"
+    else
+      cat <<'EOF' > /persist/secrets/cloudflare.env
+CLOUDFLARE_API_TOKEN=changeme
+EOF
+      chmod 600 /persist/secrets/cloudflare.env
+      echo "  [CREATED] /persist/secrets/cloudflare.env (default stub: changeme)"
+    fi
+  else
+    echo "  [OK]      /persist/secrets/cloudflare.env"
+  fi
+
   CURRENT_HOST="''${HOST:-$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)}"
 
   # MQTT broker configuration for Home Assistant telemetry

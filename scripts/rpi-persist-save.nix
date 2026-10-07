@@ -45,6 +45,13 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         echo "docker/swag/config/nginx/proxy-confs"
         echo "docker/swag/config/dns-conf"
         echo "secrets/swag.env"
+        echo "secrets/cloudflare.env"
+        echo "secrets/cloudflare-api-token"
+        ;;
+      cloudflare|ddns|cf)
+        echo "secrets/cloudflare.env"
+        echo "secrets/cloudflare-api-token"
+        echo "docker/swag/config/dns-conf"
         ;;
       passwords)
         echo "secrets/nut-monuser-password"

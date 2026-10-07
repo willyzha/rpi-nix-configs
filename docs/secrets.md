@@ -29,6 +29,16 @@ While the new master `sudo rpi-onboard` script automates this for you, you can m
   ```
   *(Interactively prompts for your root domain, email, and Cloudflare token, saves them locally under `/persist/`, and restarts SWAG. Zero private data on Git).*
 
+- **Cloudflare Dynamic DNS (API Token & Domains)**:
+  ```bash
+  sudo rpi-set-cloudflare
+  ```
+  *(Interactively prompts for your Cloudflare API token and domain names, saves them to `/persist/secrets/cloudflare.env`, syncs with SWAG's DNS config, commits them to physical SD card storage, and triggers/tests `cloudflare-dyndns.service` immediately).*
+  Non-interactive usage:
+  ```bash
+  sudo rpi-set-cloudflare <API_TOKEN> "example.com *.example.com"
+  ```
+
 - **Keepalived Cluster Authentication**:
   ```bash
   sudo rpi-set-keepalived-auth

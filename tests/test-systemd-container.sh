@@ -140,7 +140,7 @@ for host in "${TARGET_HOSTS[@]}"; do
         fi
         ;;
       kir-pi-primary|pi-primary)
-        for s in keepalived-auth.conf nut-monuser-password; do
+        for s in keepalived-auth.conf nut-monuser-password cloudflare.env; do
           if [ ! -f "${temp_persist}/secrets/$s" ]; then
             echo "    ERROR: Expected Kirkland primary secret ${temp_persist}/secrets/$s is missing!" >&2
             return 1
@@ -148,7 +148,7 @@ for host in "${TARGET_HOSTS[@]}"; do
         done
         ;;
       kir-pi-secondary|pi-secondary)
-        for s in keepalived-auth.conf wireguard/private.key; do
+        for s in keepalived-auth.conf wireguard/private.key cloudflare.env; do
           if [ ! -f "${temp_persist}/secrets/$s" ]; then
             echo "    ERROR: Expected Kirkland secondary secret ${temp_persist}/secrets/$s is missing!" >&2
             return 1
@@ -166,6 +166,7 @@ for host in "${TARGET_HOSTS[@]}"; do
     bash -n "${toplevel}/sw/bin/rpi-mqtt-monitor"
     bash -n "${toplevel}/sw/bin/rpi-services-status"
     bash -n "${toplevel}/sw/bin/rpi-rebuild"
+    bash -n "${toplevel}/sw/bin/rpi-set-cloudflare"
 
     echo "    [6] Validating Tailscale binary version..."
     TS_VER=$("${toplevel}/sw/bin/tailscale" version | head -n 1)
@@ -210,7 +211,7 @@ for host in "${TARGET_HOSTS[@]}"; do
       done
       ;;
     kir-pi-primary|pi-primary)
-      KIR_PRI_UNITS=("keepalived.service" "upsdrv.service" "upsd.service" "docker-swag.service" "docker-upswake.service")
+      KIR_PRI_UNITS=("keepalived.service" "upsdrv.service" "upsd.service" "docker-swag.service" "docker-upswake.service" "cloudflare-dyndns.service")
       for u in "${KIR_PRI_UNITS[@]}"; do
         if [ ! -e "${toplevel}/etc/systemd/system/${u}" ]; then
           echo -e "    ${RED}ERROR: Kirkland primary unit '${u}' not found in ${host} systemd configuration!${NC}" >&2
@@ -219,7 +220,7 @@ for host in "${TARGET_HOSTS[@]}"; do
       done
       ;;
     kir-pi-secondary|pi-secondary)
-      KIR_SEC_UNITS=("keepalived.service" "wireguard-wg0.service" "docker-swag.service")
+      KIR_SEC_UNITS=("keepalived.service" "wireguard-wg0.service" "docker-swag.service" "cloudflare-dyndns.service")
       for u in "${KIR_SEC_UNITS[@]}"; do
         if [ ! -e "${toplevel}/etc/systemd/system/${u}" ]; then
           echo -e "    ${RED}ERROR: Kirkland secondary unit '${u}' not found in ${host} systemd configuration!${NC}" >&2

@@ -59,10 +59,12 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       kir-pi-primary|pi-primary)
         check_secret "/persist/secrets/keepalived-auth.conf" "Keepalived VRRP Auth"
         check_secret "/persist/secrets/nut-monuser-password" "NUT UPS Password"
+        check_secret "/persist/secrets/cloudflare.env" "Cloudflare DDNS Config"
         check_secret "/persist/secrets/espresense-tracker.env" "ESPresense Tracker"
         ;;
       kir-pi-secondary|pi-secondary)
         check_secret "/persist/secrets/keepalived-auth.conf" "Keepalived VRRP Auth"
+        check_secret "/persist/secrets/cloudflare.env" "Cloudflare DDNS Config"
         check_secret "/persist/secrets/wireguard/private.key" "WireGuard Server Key"
         ;;
       ott-pi-primary|ott-pi|pi-remote)
@@ -190,10 +192,12 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
     kir-pi-primary|pi-primary)
       run_wizard "/persist/secrets/keepalived-auth.conf" "rpi-set-keepalived-auth" "Keepalived VRRP Authentication"
       run_wizard "/persist/secrets/nut-monuser-password" "rpi-set-nut-password" "NUT UPS Monitor Password"
+      run_wizard "/persist/secrets/cloudflare.env" "rpi-set-cloudflare" "Cloudflare Dynamic DNS Setup"
       prompt_file "/persist/secrets/espresense-tracker.env" "ESPresense Tracker Config" "MQTT_HOST=\nMQTT_PORT=\nMQTT_USER=\nMQTT_PASS=\n"
       ;;
     kir-pi-secondary|pi-secondary)
       run_wizard "/persist/secrets/keepalived-auth.conf" "rpi-set-keepalived-auth" "Keepalived VRRP Authentication"
+      run_wizard "/persist/secrets/cloudflare.env" "rpi-set-cloudflare" "Cloudflare Dynamic DNS Setup"
       if [ ! -s "/persist/secrets/wireguard/private.key" ]; then
         echo "Generating WireGuard private key..."
         mkdir -p /persist/secrets/wireguard
