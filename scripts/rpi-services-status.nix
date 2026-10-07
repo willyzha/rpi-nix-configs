@@ -54,6 +54,22 @@ pkgs.writeShellScriptBin "rpi-services-status" ''
     fi
   done
 
+  # Discover enabled recurring timer services (healthy if timer is active and last execution did not fail)
+  TIMER_CANDIDATES=(
+    "cloudflare-dyndns"
+  )
+
+  for candidate in "''${TIMER_CANDIDATES[@]}"; do
+    if systemctl is-enabled --quiet "''${candidate}.timer" 2>/dev/null; then
+      TOTAL=$((TOTAL + 1))
+      if systemctl is-active --quiet "''${candidate}.timer" 2>/dev/null && ! systemctl is-failed --quiet "''${candidate}.service" 2>/dev/null; then
+        OK=$((OK + 1))
+      else
+        FAILED+=("$candidate")
+      fi
+    fi
+  done
+
   if [ ''${#FAILED[@]} -eq 0 ]; then
     echo "HEALTHY ($OK/$TOTAL active)"
   else
