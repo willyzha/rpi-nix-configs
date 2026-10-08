@@ -61,6 +61,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
         check_secret "/persist/secrets/nut-monuser-password" "NUT UPS Password"
         check_secret "/persist/secrets/cloudflare.env" "Cloudflare DDNS Config"
         check_secret "/persist/secrets/espresense-tracker.env" "ESPresense Tracker"
+        check_secret "/persist/secrets/matter-hub.env" "Matter Hub Config"
         ;;
       kir-pi-secondary|pi-secondary)
         check_secret "/persist/secrets/keepalived-auth.conf" "Keepalived VRRP Auth"
@@ -194,6 +195,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       run_wizard "/persist/secrets/nut-monuser-password" "rpi-set-nut-password" "NUT UPS Monitor Password"
       run_wizard "/persist/secrets/cloudflare.env" "rpi-set-cloudflare" "Cloudflare Dynamic DNS Setup"
       prompt_file "/persist/secrets/espresense-tracker.env" "ESPresense Tracker Config" "MQTT_HOST=\nMQTT_PORT=\nMQTT_USER=\nMQTT_PASS=\n"
+      run_wizard "/persist/secrets/matter-hub.env" "rpi-set-matter-hub" "Home Assistant Matter Hub Setup"
       ;;
     kir-pi-secondary|pi-secondary)
       run_wizard "/persist/secrets/keepalived-auth.conf" "rpi-set-keepalived-auth" "Keepalived VRRP Authentication"
@@ -210,7 +212,7 @@ pkgs.writeShellScriptBin "rpi-onboard" ''
       ;;
     ott-pi-primary|ott-pi|pi-remote)
       prompt_file "/persist/secrets/wg0.conf" "WireGuard Full Client Config" "[Interface]\nPrivateKey = ...\nAddress = ...\n\n[Peer]\nPublicKey = ...\nEndpoint = ...\nAllowedIPs = 0.0.0.0/0\n"
-      prompt_file "/persist/secrets/matter-hub.env" "Matter Hub Config" "HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123\nHAMH_HOME_ASSISTANT_ACCESS_TOKEN=\n"
+      run_wizard "/persist/secrets/matter-hub.env" "rpi-set-matter-hub" "Home Assistant Matter Hub Setup"
       prompt_file "/persist/secrets/wyze-bridge.env" "Wyze Bridge Config" "WYZE_EMAIL=\nWYZE_PASSWORD=\nAPI_ID=\nAPI_KEY=\n"
       ;;
     *)

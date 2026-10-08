@@ -18,6 +18,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
   - [**UPSWake**](https://github.com/TheDarthMole/UPSWake): Wake-on-LAN service polling NUT server status.
+  - [**Home Assistant Matter Hub**](https://github.com/riddix/home-assistant-matter-hub): Matter bridge exposing Home Assistant entities to Apple Home/Google Home/Alexa (Web UI on port `8482`, Matter Commissioning on port `5540`).
 
 ### `kir-pi-secondary` (`kir-pi-secondary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:

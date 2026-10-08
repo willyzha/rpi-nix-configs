@@ -127,7 +127,7 @@ EOF
     fi
   fi
 
-  if [[ "$CURRENT_HOST" =~ ^(ott-pi-primary|ott-pi|pi-remote) ]]; then
+  if [[ "$CURRENT_HOST" =~ ^(ott-pi-primary|ott-pi|pi-remote|kir-pi-primary|pi-primary) ]]; then
     if [ ! -f /persist/secrets/matter-hub.env ]; then
       cat <<'EOF' > /persist/secrets/matter-hub.env
 HAMH_HOME_ASSISTANT_URL=http://homeassistant.local:8123
