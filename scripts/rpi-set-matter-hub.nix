@@ -94,7 +94,15 @@ EOF
     echo "==> Restarting docker-matter-hub.service to apply credentials..."
     systemctl reset-failed docker-matter-hub.service 2>/dev/null || true
     systemctl restart docker-matter-hub.service 2>/dev/null || true
-    sleep 2
+
+    echo "==> Waiting for Matter Hub to start and listen on port 8482..."
+    for i in {1..30}; do
+      if ss -tlpn 2>/dev/null | grep -q :8482; then
+        echo "  [✓] Matter Hub is up and running!"
+        break
+      fi
+      sleep 2
+    done
 
     echo ""
     echo "--------------------------------------------------"
@@ -104,7 +112,13 @@ EOF
     echo "--------------------------------------------------"
   fi
 
+  # Detect node IP and hostname for user convenience
+  NODE_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7}' || hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
+  NODE_HOST=$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname 2>/dev/null || echo "kir-pi-primary")
+
   echo ""
   echo "==> Matter Hub configuration successfully saved and persisted!"
-  echo "Web UI is available at: http://<NODE_IP>:8482"
+  echo "Web UI is available at:"
+  echo "  - http://$NODE_IP:8482"
+  echo "  - http://$NODE_HOST.local:8482"
 ''
