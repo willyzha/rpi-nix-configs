@@ -1,17 +1,48 @@
 # Gemini Learnings & Best Practices
 
 ## Deployment (`docker-rebuild.sh`)
+
+### Auto-Detection
 When deploying configurations using `docker-rebuild.sh`, **rely on the script's built-in auto-detection** instead of explicitly forcing the `TARGET_HOST` (either via positional arguments or exported environment variables).
 
 **Correct Usage:**
 ```bash
 # Provide only the IP address and let the script securely auto-detect the node's identity:
-./docker-rebuild.sh 192.168.1.11 boot
-./docker-rebuild.sh 192.168.1.12 boot
+./docker-rebuild.sh 192.168.1.12 switch
+./docker-rebuild.sh 192.168.1.11 switch
 ```
 
 **Why?**
 The deployment script is designed to SSH into the target IP, securely query its true hostname (`cat /proc/sys/kernel/hostname`), and automatically build the correct NixOS configuration for it. By explicitly forcing a `TARGET_HOST`, we bypass this safety mechanism, which can lead to flashing a node with the wrong configuration if there is an IP mixup or if bash variables leak between commands.
+
+### Pre-Flight Testing
+Before deploying any configuration or script change to physical nodes, **always run the in-container test suite**:
+```bash
+./docker-rebuild.sh test-container
+```
+This builds closures for all three nodes (`ott-pi-primary`, `kir-pi-primary`, `kir-pi-secondary`), tests NixOS activation scripts, runs `rpi-init-secrets`, verifies `rpi-onboard --check`, validates bash script syntax, and asserts systemd unit definitions without risking live hardware.
+
+### Sequential Staged Rollout (Secondary First, Never Simultaneous)
+When deploying updates to the high-availability Kirkland cluster (`kir-pi-primary` at `192.168.1.11` and `kir-pi-secondary` at `192.168.1.12`):
+1. **Never deploy to both nodes simultaneously.** Keepalived VRRP requires at least one healthy node actively servicing the Virtual IP (`192.168.1.9`) and handling DNS/proxy traffic. Deploying both at once causes a full network blackout for the LAN.
+2. **Deploy to Secondary First:**
+   ```bash
+   ./docker-rebuild.sh 192.168.1.12 switch
+   ```
+3. **Verify Secondary Health Before Touching Primary:**
+   Ensure the secondary node is back up and completely healthy before initiating primary deployment:
+   ```bash
+   ssh root@192.168.1.12 "rpi-services-status"
+   ```
+   Verify that it reports `HEALTHY` and Keepalived is ready to take over the VIP if needed.
+4. **Deploy to Primary Only After Secondary is Verified:**
+   ```bash
+   ./docker-rebuild.sh 192.168.1.11 switch
+   ```
+   After switching, verify the primary node:
+   ```bash
+   ssh root@192.168.1.11 "rpi-services-status"
+   ```
 
 ## Raspberry Pi specific quirks
 * **No Hardware RTC:** Raspberry Pis do not have a Real-Time Clock. On boot, their clock will default to the epoch or the last fake-hwclock save until NTP synchronizes. 
@@ -29,6 +60,8 @@ When an AI agent adds or configures a new service on any cluster node, it must s
   * The application requires complex multi-container dependencies or custom web assets that cannot be packaged cleanly in Nix.
 * **SD Card Protection:** 
   * Ensure runtime state, logs, and volatile caches use `tmpfs` (e.g. systemd `RuntimeDirectory=`, `CacheDirectory=`, or explicit `fileSystems."<path>"` tmpfs mounts) or map to the `/persist` OverlayFS architecture. Never write unmanaged runtime data directly to the root filesystem.
+* **Firewall Configuration:**
+  * NixOS enforces an active firewall by default (`networking.firewall.enable = true`). If the service exposes a network port (HTTP UI, proxy, DNS, API), either enable the service's `openFirewall = true;` option or explicitly declare the ports in `networking.firewall.allowedTCPPorts` / `networking.firewall.allowedUDPPorts`.
 
 ### 2. Strictly Zero Secrets in Git
 * **Never commit secrets:** Never commit personal API tokens, private keys, passwords, personal email addresses, or personal domain names into Git repository files (Nix configurations, documentation, comments, or commit history).
@@ -52,7 +85,9 @@ Whenever a service requires an API token, password, domain, or node-specific sec
   * In `is_placeholder()`, ensure any new placeholder patterns are recognized.
   * In `check_secret()`, add the new secret path to the `--check` status table for the relevant host(s).
   * In the main wizard flow, prompt the user or invoke the dedicated setup script to configure the secret.
-* **Cluster Health Monitoring:** If the service is a long-running daemon or systemd timer, register it in [`scripts/rpi-services-status.nix`](file:///home/willyzha/code/rpi-nix-configs/scripts/rpi-services-status.nix) (`CANDIDATES` or `TIMER_CANDIDATES`) so its health is published to Home Assistant via MQTT.
+* **Cluster Health Monitoring:** Register the service in [`scripts/rpi-services-status.nix`](file:///home/willyzha/code/rpi-nix-configs/scripts/rpi-services-status.nix) so its status is tracked by Home Assistant via MQTT:
+  * **Long-running daemons** (e.g. `adguardhome`, `keepalived`, `mosquitto`): add to `CANDIDATES`.
+  * **Timer-triggered services** (e.g. `cloudflare-dyndns`): add to `TIMER_CANDIDATES`. (Do NOT add timers to `CANDIDATES`, or they will falsely report `DEGRADED` while idle between runs).
 
 ### 4. Update the Readme
 * Always update [`README.md`](file:///home/willyzha/code/rpi-nix-configs/README.md):
