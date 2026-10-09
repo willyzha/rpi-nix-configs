@@ -5,6 +5,16 @@ let
   calendarTime =
     if hostName == "kir-pi-secondary" then "03:30"
     else "03:00";
+
+  postBackupScript = pkgs.writeShellScript "restic-post-backup" ''
+    if [ "$SERVICE_RESULT" = "success" ]; then
+      ${pkgs.coreutils}/bin/mkdir -p /persist/var/cache/restic
+      ${pkgs.coreutils}/bin/date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success
+      if command -v rpi-persist-save >/dev/null 2>&1; then
+        rpi-persist-save var/cache/restic || true
+      fi
+    fi
+  '';
 in
 {
   # Native Restic backup of /persist to Dropbox via Rclone
@@ -34,6 +44,6 @@ in
   };
 
   systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
-    "-${pkgs.bash}/bin/bash -c 'if [ \"$SERVICE_RESULT\" = \"success\" ]; then ${pkgs.coreutils}/bin/mkdir -p /persist/var/cache/restic && ${pkgs.coreutils}/bin/date -u +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success; fi'"
+    "-${postBackupScript}"
   ];
 }

@@ -385,6 +385,11 @@ EOF
 
 
 
+    is_valid_iso_timestamp() {
+      local ts="$1"
+      [[ "$ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2} ]]
+    }
+
     # Initial sample
     read -r prev_idle prev_total <<< "$(get_cpu_ticks)"
 
@@ -407,18 +412,32 @@ EOF
         fi
       fi
 
-      # Restore last backup timestamp from remote once NTP is synced
-      if [ ! -f /persist/var/cache/restic/last_success ] && [ "$FETCHED_BACKUP" -eq 0 ]; then
-        if [ "$(timedatectl show -p NTPSynchronized --value)" = "yes" ]; then
-          if command -v restic-persist >/dev/null 2>&1; then
-            echo "==> Fetching last successful backup timestamp from remote repository..."
-            raw_time=$(restic-persist snapshots --latest 1 --json 2>/dev/null | ${pkgs.jq}/bin/jq -r '.[0].time' 2>/dev/null || true)
-            if [ -n "$raw_time" ] && [ "$raw_time" != "null" ]; then
-              mkdir -p /persist/var/cache/restic
-              date -u -d "$raw_time" +%Y-%m-%dT%H:%M:%SZ > /persist/var/cache/restic/last_success
-              echo "==> Restored last backup timestamp: $(cat /persist/var/cache/restic/last_success)"
+      # Restore last backup timestamp from remote if missing or invalid once NTP is synced
+      if [ "$FETCHED_BACKUP" -eq 0 ]; then
+        local current_last=""
+        if [ -f /persist/var/cache/restic/last_success ]; then
+          current_last=$(head -n 1 /persist/var/cache/restic/last_success 2>/dev/null | tr -d '\r\n')
+        fi
+        if ! is_valid_iso_timestamp "$current_last"; then
+          if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
+            if command -v restic-persist >/dev/null 2>&1; then
+              echo "==> Fetching last successful backup timestamp from remote repository..."
+              raw_time=$(restic-persist snapshots --latest 1 --json 2>/dev/null | ${pkgs.jq}/bin/jq -r 'sort_by(.time) | last | .time // empty' 2>/dev/null || true)
+              if [ -n "$raw_time" ] && [ "$raw_time" != "null" ]; then
+                formatted_time=$(date -u -d "$raw_time" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || true)
+                if is_valid_iso_timestamp "$formatted_time"; then
+                  mkdir -p /persist/var/cache/restic
+                  echo "$formatted_time" > /persist/var/cache/restic/last_success
+                  echo "==> Restored last backup timestamp: $formatted_time"
+                  if command -v rpi-persist-save >/dev/null 2>&1; then
+                    rpi-persist-save var/cache/restic >/dev/null 2>&1 || true
+                  fi
+                fi
+              fi
             fi
+            FETCHED_BACKUP=1
           fi
+        else
           FETCHED_BACKUP=1
         fi
       fi
@@ -474,7 +493,13 @@ EOF
 
       # Restic Backup status
       if [ -f /persist/var/cache/restic/last_success ]; then
-        LAST_BACKUP=$(cat /persist/var/cache/restic/last_success)
+        local raw_last
+        raw_last=$(head -n 1 /persist/var/cache/restic/last_success 2>/dev/null | tr -d '\r\n')
+        if is_valid_iso_timestamp "$raw_last"; then
+          LAST_BACKUP="$raw_last"
+        else
+          LAST_BACKUP="null"
+        fi
       else
         LAST_BACKUP="null"
       fi
