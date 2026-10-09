@@ -84,6 +84,7 @@ This setup prevents wear while preserving convenience:
 7. **`rpi-check-update` command**: Built-in helper that checks if the running system is in sync with the latest GitHub commit in ~0.3s via the Git wire protocol.
 8. **`rpi-vrrp-status` command**: Built-in helper that queries local network interfaces to report whether the node is `MASTER` or `BACKUP` for Keepalived.
 9. **`rpi-services-status` command**: Built-in helper that verifies the health of all cluster services (`keepalived`, `adguardhome`, `docker`, `docker-swag`, `rpi-mqtt-monitor`, `upsd`, `tailscaled`).
+10. **`rpi-add-ssh-key` command**: Built-in helper to install private authorized SSH keys locally on the device (in `/persist/etc/ssh/authorized_keys.d/`) without committing them to Git or GitHub. Auto-commits to physical SD card.
 
 ---
 

@@ -18,6 +18,17 @@ While the new master `sudo rpi-onboard` script automates this for you, you can m
   ```
   *(Automatically handles the read-write remount and writes to disk. Survives all future reboots and rebuilds).*
 
+- **Local Persistent SSH Keys (Private / Not on GitHub)**:
+  ```bash
+  sudo rpi-add-ssh-key
+  ```
+  *(Interactively prompts for the public SSH key and user [root/pi], saves it to `/persist/etc/ssh/authorized_keys.d/<user>`, and commits it to the physical SD card. Survives reboots and rebuilds without ever touching Git).*
+  Non-interactive usage:
+  ```bash
+  sudo rpi-add-ssh-key "ssh-ed25519 AAAAC3... user@laptop" root
+  sudo rpi-add-ssh-key --list
+  ```
+
 - **NUT Server Monitoring Password** (for `kir-pi-primary`, used by `upswake` and `upsd`):
   ```bash
   sudo rpi-set-nut-password

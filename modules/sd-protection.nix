@@ -197,6 +197,7 @@
   # 8. Ensure critical persistence directories exist on boot
   systemd.tmpfiles.rules = [
     "d /persist/etc/ssh 0755 root root -"
+    "d /persist/etc/ssh/authorized_keys.d 0755 root root -"
     "d /persist/secrets 0700 root root -"
     "d /persist/secrets/wireguard 0700 root root -"
     "d /persist/var/lib/docker 0710 root root -"

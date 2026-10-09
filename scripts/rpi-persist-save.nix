@@ -69,7 +69,7 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         echo "Web UI changes cannot be saved to the SD card. Update hosts/kir-pi-*.nix and deploy instead." >&2
         return 0
         ;;
-      ssh)
+      ssh|ssh-keys|keys)
         echo "etc/ssh"
         ;;
       wireguard|wg)

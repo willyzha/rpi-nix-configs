@@ -10,6 +10,7 @@
     (import ./rpi-set-restic-password.nix { inherit pkgs; })
     (import ./rpi-set-cloudflare.nix { inherit pkgs; })
     (import ./rpi-set-matter-hub.nix { inherit pkgs; })
+    (import ./rpi-add-ssh-key.nix { inherit pkgs; })
     (import ./rpi-init-secrets.nix { inherit pkgs; })
     (import ./rpi-set-swag.nix { inherit pkgs; })
     (import ./rpi-persist-save.nix { inherit pkgs; })

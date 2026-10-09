@@ -127,6 +127,12 @@
   # SSH configuration
   services.openssh = {
     enable = true;
+    authorizedKeysFiles = lib.mkForce [
+      "%h/.ssh/authorized_keys"
+      "/etc/ssh/authorized_keys.d/%u"
+      "/persist/etc/ssh/authorized_keys.d/%u"
+      "/persist/secrets/authorized_keys"
+    ];
     settings = {
       PermitRootLogin = "prohibit-password";
       PasswordAuthentication = true;
