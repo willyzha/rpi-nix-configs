@@ -414,7 +414,7 @@ EOF
 
       # Restore last backup timestamp from remote if missing or invalid once NTP is synced
       if [ "$FETCHED_BACKUP" -eq 0 ]; then
-        local current_last=""
+        current_last=""
         if [ -f /persist/var/cache/restic/last_success ]; then
           current_last=$(head -n 1 /persist/var/cache/restic/last_success 2>/dev/null | tr -d '\r\n')
         fi
@@ -493,7 +493,6 @@ EOF
 
       # Restic Backup status
       if [ -f /persist/var/cache/restic/last_success ]; then
-        local raw_last
         raw_last=$(head -n 1 /persist/var/cache/restic/last_success 2>/dev/null | tr -d '\r\n')
         if is_valid_iso_timestamp "$raw_last"; then
           LAST_BACKUP="$raw_last"
