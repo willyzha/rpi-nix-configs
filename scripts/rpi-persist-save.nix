@@ -154,7 +154,7 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         echo "  [SAVED DIR]  /persist/$TARGET -> /persist-raw/$TARGET"
         COPIED_ANY=true
       else
-        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no copy needed)"
+        echo "  [VALIDATED]  /persist/$TARGET (contents match SD card)"
       fi
     else
       mkdir -p "$(dirname "$DEST")"
@@ -164,7 +164,7 @@ pkgs.writeShellScriptBin "rpi-persist-save" ''
         echo "  [SAVED FILE] /persist/$TARGET -> /persist-raw/$TARGET"
         COPIED_ANY=true
       else
-        echo "  [IDENTICAL]  /persist/$TARGET matches SD card (no copy needed)"
+        echo "  [VALIDATED]  /persist/$TARGET (contents match SD card)"
       fi
     fi
   }
