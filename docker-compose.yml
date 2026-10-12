@@ -33,6 +33,7 @@ services:
       - TARGET_USER=${TARGET_USER:-root}
       - SSH_KEY=${SSH_KEY:-}
       - REBOOT=${REBOOT:-true}
+      - FORCE_DEPLOY=${FORCE_DEPLOY:-false}
     stdin_open: true
     tty: true
 

@@ -256,9 +256,19 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
   REMOTE_HW_INFO=$(ssh $SSH_OPTS -o BatchMode=yes "${TARGET_USER}@${TARGET_IP}" \
     "awk '/^Serial/ {print \$NF}' /proc/cpuinfo 2>/dev/null; cat /sys/class/net/eth0/address 2>/dev/null || cat /sys/class/net/wlan0/address 2>/dev/null; cat /proc/sys/kernel/hostname 2>/dev/null" 2>/dev/null || true)
 
-  REMOTE_SERIAL=$(echo "$REMOTE_HW_INFO" | sed -n '1p' | tr -d '\r\n[:space:]')
-  REMOTE_MAC=$(echo "$REMOTE_HW_INFO" | sed -n '2p' | tr -d '\r\n[:space:]')
-  DETECTED_HOSTNAME=$(echo "$REMOTE_HW_INFO" | sed -n '3p' | tr -d '\r\n[:space:]')
+  REMOTE_SERIAL=""
+  REMOTE_MAC=""
+  DETECTED_HOSTNAME=""
+  {
+    read -r REMOTE_SERIAL || true
+    read -r REMOTE_MAC || true
+    read -r DETECTED_HOSTNAME || true
+  } <<< "$REMOTE_HW_INFO"
+
+  # Strip carriage returns and whitespace using pure bash
+  REMOTE_SERIAL="${REMOTE_SERIAL//[$'\r\n ']/}"
+  REMOTE_MAC="${REMOTE_MAC//[$'\r\n ']/}"
+  DETECTED_HOSTNAME="${DETECTED_HOSTNAME//[$'\r\n ']/}"
 
   # Map legacy detected hostname to current flake configuration
   case "$DETECTED_HOSTNAME" in
