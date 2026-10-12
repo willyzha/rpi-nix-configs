@@ -35,6 +35,23 @@ resolve_host_to_ip() {
     echo "$target"
     return 0
   fi
+
+  # Fast static mapping for known cluster nodes (prevents mDNS collisions)
+  case "$target" in
+    kir-pi-primary|pi-primary)
+      echo "192.168.1.11"
+      return 0
+      ;;
+    kir-pi-secondary|pi-secondary)
+      echo "192.168.1.12"
+      return 0
+      ;;
+    ott-pi-primary|ott-pi|pi-remote)
+      echo "100.71.110.64"
+      return 0
+      ;;
+  esac
+
   local ip=""
   ip=$(getent hosts "$target" 2>/dev/null | awk '{print $1}' | head -n 1)
   if [ -z "$ip" ] && [[ ! "$target" =~ \.local$ ]]; then

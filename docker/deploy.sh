@@ -77,9 +77,19 @@ is_action() {
 }
 
 # 1. Parse Arguments & Environment Variables
-RAW_ARG1="${1:-}"
-RAW_ARG2="${2:-}"
-RAW_ARG3="${3:-}"
+FORCE_DEPLOY="${FORCE_DEPLOY:-false}"
+FILTERED_ARGS=()
+for arg in "$@"; do
+  if [[ "$arg" == "--force" || "$arg" == "-f" ]]; then
+    FORCE_DEPLOY=true
+  else
+    FILTERED_ARGS+=("$arg")
+  fi
+done
+
+RAW_ARG1="${FILTERED_ARGS[0]:-}"
+RAW_ARG2="${FILTERED_ARGS[1]:-}"
+RAW_ARG3="${FILTERED_ARGS[2]:-}"
 
 # Normalize .local suffix for known hostnames
 if [[ "$RAW_ARG1" =~ \.local$ ]]; then
@@ -127,6 +137,9 @@ if [ -n "$RAW_ARG1" ]; then
         fi
       elif is_ip_or_address "$RAW_ARG2"; then
         TARGET_IP="$RAW_ARG2"
+        if [ -n "$RAW_ARG3" ] && is_action "$RAW_ARG3"; then
+          ACTION="$RAW_ARG3"
+        fi
       fi
     fi
   fi
@@ -239,32 +252,80 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     exit 1
   fi
 
-  # Query remote hostname
-  DETECTED_HOSTNAME=$(ssh $SSH_OPTS -o BatchMode=yes "${TARGET_USER}@${TARGET_IP}" "cat /proc/sys/kernel/hostname 2>/dev/null || hostname" 2>/dev/null | tr -d '\r\n[:space:]' || true)
+  # Query remote hardware identity (silicon CPU serial, MAC, and hostname)
+  REMOTE_HW_INFO=$(ssh $SSH_OPTS -o BatchMode=yes "${TARGET_USER}@${TARGET_IP}" \
+    "awk '/^Serial/ {print \$NF}' /proc/cpuinfo 2>/dev/null; cat /sys/class/net/eth0/address 2>/dev/null || cat /sys/class/net/wlan0/address 2>/dev/null; cat /proc/sys/kernel/hostname 2>/dev/null" 2>/dev/null || true)
 
-  if [ -n "$DETECTED_HOSTNAME" ]; then
-    echo -e "  ${GREEN}✓ Connected!${NC} Node identified as: ${BOLD}${DETECTED_HOSTNAME}${NC}"
-    # Map legacy detected hostname to current flake configuration
-    case "$DETECTED_HOSTNAME" in
-      pi-primary) DETECTED_CONFIG="kir-pi-primary" ;;
-      pi-secondary) DETECTED_CONFIG="kir-pi-secondary" ;;
-      ott-pi|pi-remote) DETECTED_CONFIG="ott-pi-primary" ;;
-      *) DETECTED_CONFIG="$DETECTED_HOSTNAME" ;;
-    esac
+  REMOTE_SERIAL=$(echo "$REMOTE_HW_INFO" | sed -n '1p' | tr -d '\r\n[:space:]')
+  REMOTE_MAC=$(echo "$REMOTE_HW_INFO" | sed -n '2p' | tr -d '\r\n[:space:]')
+  DETECTED_HOSTNAME=$(echo "$REMOTE_HW_INFO" | sed -n '3p' | tr -d '\r\n[:space:]')
 
+  # Map legacy detected hostname to current flake configuration
+  case "$DETECTED_HOSTNAME" in
+    pi-primary) DETECTED_CONFIG="kir-pi-primary" ;;
+    pi-secondary) DETECTED_CONFIG="kir-pi-secondary" ;;
+    ott-pi|pi-remote) DETECTED_CONFIG="ott-pi-primary" ;;
+    *) DETECTED_CONFIG="$DETECTED_HOSTNAME" ;;
+  esac
+
+  # Known hardware registry: Serial / MAC / IP -> Designated Flake Configuration
+  HW_DESIGNATION=""
+  if [ "$REMOTE_SERIAL" = "00000000d81501cf" ] || [ "$REMOTE_MAC" = "b8:27:eb:15:01:cf" ] || [ "$TARGET_IP" = "192.168.1.11" ]; then
+    HW_DESIGNATION="kir-pi-primary"
+  elif [ "$REMOTE_SERIAL" = "0000000031098eaa" ] || [ "$REMOTE_MAC" = "b8:27:eb:09:8e:aa" ] || [ "$TARGET_IP" = "192.168.1.12" ]; then
+    HW_DESIGNATION="kir-pi-secondary"
+  elif [ "$REMOTE_SERIAL" = "1000000032d53d8a" ] || [ "$REMOTE_MAC" = "dc:a6:32:9b:7f:51" ] || [ "$TARGET_IP" = "100.71.110.64" ]; then
+    HW_DESIGNATION="ott-pi-primary"
+  fi
+
+  echo -e "  ${GREEN}✓ Connected!${NC} Hostname: ${BOLD}${DETECTED_HOSTNAME:-unknown}${NC}"
+  if [ -n "$REMOTE_SERIAL" ]; then
+    echo -e "  Hardware Serial: ${BOLD}${REMOTE_SERIAL}${NC} (MAC: ${REMOTE_MAC:-unknown})"
+  fi
+
+  if [ -n "$HW_DESIGNATION" ]; then
+    if [ -n "$TARGET_HOST" ] && [ "$TARGET_HOST" != "$HW_DESIGNATION" ]; then
+      if [ "$FORCE_DEPLOY" = "true" ]; then
+        echo -e "  ${YELLOW}WARNING: Force flag enabled! Overriding hardware designation '${HW_DESIGNATION}' with '${TARGET_HOST}'.${NC}"
+      else
+        echo -e "\n${RED}${BOLD}================================================================${NC}" >&2
+        echo -e "${RED}${BOLD}  SAFETY CHECK FAILED: HARDWARE / PROFILE MISMATCH!             ${NC}" >&2
+        echo -e "${RED}${BOLD}================================================================${NC}" >&2
+        echo -e "  Target Device IP : ${BOLD}${TARGET_IP}${NC}" >&2
+        echo -e "  Hardware Serial  : ${BOLD}${REMOTE_SERIAL:-unknown}${NC} (MAC: ${REMOTE_MAC:-unknown})" >&2
+        echo -e "  Hardware Identity: ${GREEN}${BOLD}${HW_DESIGNATION}${NC}" >&2
+        echo -e "  Attempted Deploy : ${RED}${BOLD}${TARGET_HOST}${NC}" >&2
+        echo -e "" >&2
+        echo -e "  Refusing to deploy '${TARGET_HOST}' onto '${HW_DESIGNATION}' hardware." >&2
+        echo -e "  Deploying secondary onto primary (or vice-versa) causes Keepalived VRRP" >&2
+        echo -e "  split-brain (both claiming VIP 192.168.1.9) and disables primary services." >&2
+        echo -e "" >&2
+        echo -e "  To correctly update this node, run:" >&2
+        echo -e "    ${BOLD}./docker-rebuild.sh ${HW_DESIGNATION} ${ACTION}${NC}" >&2
+        echo -e "  (To bypass this protection, set FORCE_DEPLOY=true or pass --force)" >&2
+        echo -e "${RED}${BOLD}================================================================${NC}" >&2
+        exit 1
+      fi
+    else
+      if [ -n "$DETECTED_CONFIG" ] && [ "$DETECTED_CONFIG" != "$HW_DESIGNATION" ]; then
+        echo -e "  ${YELLOW}Notice: Node reported hostname '${DETECTED_HOSTNAME}', but hardware identity is '${HW_DESIGNATION}'.${NC}"
+        echo -e "  ${YELLOW}Auto-correcting configuration to: ${BOLD}${HW_DESIGNATION}${NC}"
+      fi
+      TARGET_HOST="$HW_DESIGNATION"
+    fi
+  else
+    # Unknown hardware fallback
     if [ -z "$TARGET_HOST" ]; then
-      TARGET_HOST="$DETECTED_CONFIG"
+      if [ -n "$DETECTED_CONFIG" ]; then
+        TARGET_HOST="$DETECTED_CONFIG"
+      else
+        echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
+        echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh <CONFIG_NAME> boot $TARGET_IP)" >&2
+        exit 1
+      fi
     elif [ "$TARGET_HOST" != "$DETECTED_CONFIG" ] && [ "$TARGET_HOST" != "$DETECTED_HOSTNAME" ]; then
       echo -e "  ${YELLOW}Notice: Node reported hostname '${DETECTED_HOSTNAME}', but '${TARGET_HOST}' was explicitly set.${NC}"
       echo -e "  Using explicit configuration: ${BOLD}${TARGET_HOST}${NC}"
-    else
-      TARGET_HOST="$DETECTED_CONFIG"
-    fi
-  else
-    if [ -z "$TARGET_HOST" ]; then
-      echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
-      echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh <CONFIG_NAME> boot $TARGET_IP)" >&2
-      exit 1
     fi
   fi
 else
