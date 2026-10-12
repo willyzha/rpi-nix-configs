@@ -112,6 +112,8 @@ Building directly on a Raspberry Pi can trigger OOM crashes and heavy SD card sw
 If you have cloned this repository, use the convenient wrapper script:
 
 > **Note:** Do **not** prefix the hostname with `pi@` (e.g. run `./docker-rebuild.sh kir-pi-primary`, not `pi@kir-pi-primary`). The deployment script automatically connects as `root` via SSH using your host's keys in `~/.ssh` to build and activate system profiles.
+>
+> **Safety Guard**: The deployer automatically verifies the remote node's hostname over SSH before building. If `kir-pi-primary` (or its designated IP) is targeted with a different configuration (e.g. `kir-pi-secondary`), the deployment halts, displays a high-visibility warning detailing the affected cluster services, and requires explicit confirmation (`Type 'yes' to proceed` or `--confirm` / `--force`) to prevent accidental cross-node deployments.
 
 <details>
 <summary><b>Deploy to <code>kir-pi-primary</code></b></summary>

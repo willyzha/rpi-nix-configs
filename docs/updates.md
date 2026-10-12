@@ -8,7 +8,7 @@ When you use the `./docker-rebuild.sh` script or the `docker run` command, the f
 
 1. **Automatic ARM64 Emulation**: Uses `tonistiigi/binfmt` to register `qemu-aarch64` in the kernel so any `aarch64` derivation can run seamlessly on your `x86_64` host.
 2. **Persistent Store Cache**: Mounts named volume `rpi-nix-store` and `rpi-nix-cache` so packages and flakes downloaded once are cached permanently across rebuilds.
-3. **Pre-flight Connectivity Check**: Tests SSH authentication with `root@$TARGET_IP` before compiling anything.
+3. **Pre-flight Connectivity & Node Verification**: Tests SSH authentication with `root@$TARGET_IP` and verifies the remote node's hostname. If a configuration mismatch is detected (especially if `kir-pi-primary` is targeted for replacement by another profile), it warns and requires explicit confirmation (`Type 'yes' to proceed` or `--confirm`) before compiling anything.
 4. **SD Protection RW Remount**: Automatically remounts the target's `/` and `/boot/firmware` partitions as `rw` over SSH so the store paths can be received.
 5. **Host-Side Build**: Evaluates and builds the system toplevel using your host machine's full CPU and RAM in seconds.
 6. **Network Closure Copy**: Pushes only the changed store paths to the Pi via `nix copy` over SSH.
