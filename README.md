@@ -168,7 +168,7 @@ Because `--rm` is used and no storage volumes are mounted, the deployment runs c
 TARGET_IP=$(getent hosts kir-pi-primary.local | awk '{print $1}')
 
 # 2. Run the builder container:
-docker run --rm --net=host \
+docker run --rm -it --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
@@ -185,7 +185,7 @@ docker run --rm --net=host \
 TARGET_IP=$(getent hosts kir-pi-secondary.local | awk '{print $1}')
 
 # 2. Run the builder container:
-docker run --rm --net=host \
+docker run --rm -it --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
@@ -202,7 +202,7 @@ docker run --rm --net=host \
 TARGET_IP=$(getent hosts ott-pi-primary.local | awk '{print $1}')
 
 # 2. Run the builder container:
-docker run --rm --net=host \
+docker run --rm -it --net=host \
   -e TARGET_IP="$TARGET_IP" \
   -v ~/.ssh:/root/.ssh:ro \
   -v ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent:ro \
