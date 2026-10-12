@@ -85,25 +85,38 @@ done
 
 # Resolve target IP from host DNS/mDNS if a target hostname was provided and not a local-only action
 if [ "$IS_LOCAL_ACTION" = "false" ] && [ "$#" -gt 0 ]; then
-  FIRST_ARG="$1"
-  if [[ ! "$FIRST_ARG" =~ ^(boot|switch|test|dry-build|dry-activate)$ ]]; then
-    if RESOLVED_IP=$(resolve_host_to_ip "$FIRST_ARG"); then
-      export TARGET_IP="$RESOLVED_IP"
-      echo "Host DNS/mDNS resolved '${FIRST_ARG}' -> ${TARGET_IP}"
-    elif [[ ! "$FIRST_ARG" =~ ^(help|-h|--help)$ ]]; then
-      echo "Error: DNS/mDNS resolution failed for '${FIRST_ARG}'." >&2
-      echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
-      exit 1
+  # 1. Check if any argument is an explicit IP address
+  EXPLICIT_IP=""
+  for arg in "$@"; do
+    if [[ "$arg" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      EXPLICIT_IP="$arg"
+      break
     fi
-  elif [ "$#" -gt 1 ]; then
-    SECOND_ARG="$2"
-    if RESOLVED_IP=$(resolve_host_to_ip "$SECOND_ARG"); then
-      export TARGET_IP="$RESOLVED_IP"
-      echo "Host DNS/mDNS resolved '${SECOND_ARG}' -> ${TARGET_IP}"
-    else
-      echo "Error: DNS/mDNS resolution failed for '${SECOND_ARG}'." >&2
-      echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
-      exit 1
+  done
+
+  if [ -n "$EXPLICIT_IP" ]; then
+    export TARGET_IP="$EXPLICIT_IP"
+  else
+    FIRST_ARG="$1"
+    if [[ ! "$FIRST_ARG" =~ ^(boot|switch|test|dry-build|dry-activate)$ ]]; then
+      if RESOLVED_IP=$(resolve_host_to_ip "$FIRST_ARG"); then
+        export TARGET_IP="$RESOLVED_IP"
+        echo "Host DNS/mDNS resolved '${FIRST_ARG}' -> ${TARGET_IP}"
+      elif [[ ! "$FIRST_ARG" =~ ^(help|-h|--help)$ ]]; then
+        echo "Error: DNS/mDNS resolution failed for '${FIRST_ARG}'." >&2
+        echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
+        exit 1
+      fi
+    elif [ "$#" -gt 1 ]; then
+      SECOND_ARG="$2"
+      if RESOLVED_IP=$(resolve_host_to_ip "$SECOND_ARG"); then
+        export TARGET_IP="$RESOLVED_IP"
+        echo "Host DNS/mDNS resolved '${SECOND_ARG}' -> ${TARGET_IP}"
+      else
+        echo "Error: DNS/mDNS resolution failed for '${SECOND_ARG}'." >&2
+        echo "Please specify the IP address directly (e.g. ./docker-rebuild.sh <IP_ADDRESS> [ACTION])." >&2
+        exit 1
+      fi
     fi
   fi
 fi

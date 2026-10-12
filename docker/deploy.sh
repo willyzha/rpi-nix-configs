@@ -78,10 +78,17 @@ is_action() {
 
 # 1. Parse Arguments & Environment Variables
 FORCE_DEPLOY="${FORCE_DEPLOY:-false}"
+CONFIRM_DEPLOY="${CONFIRM_DEPLOY:-false}"
+if [[ "$FORCE_DEPLOY" == "true" ]]; then
+  CONFIRM_DEPLOY=true
+fi
 FILTERED_ARGS=()
 for arg in "$@"; do
   if [[ "$arg" == "--force" || "$arg" == "-f" ]]; then
     FORCE_DEPLOY=true
+    CONFIRM_DEPLOY=true
+  elif [[ "$arg" == "--confirm" || "$arg" == "--yes" || "$arg" == "-y" ]]; then
+    CONFIRM_DEPLOY=true
   else
     FILTERED_ARGS+=("$arg")
   fi
@@ -252,22 +259,9 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     exit 1
   fi
 
-  # Query remote hardware identity (silicon CPU serial, MAC, and hostname)
-  REMOTE_HW_INFO=$(ssh $SSH_OPTS -o BatchMode=yes "${TARGET_USER}@${TARGET_IP}" \
-    "awk '/^Serial/ {print \$NF}' /proc/cpuinfo 2>/dev/null; cat /sys/class/net/eth0/address 2>/dev/null || cat /sys/class/net/wlan0/address 2>/dev/null; cat /proc/sys/kernel/hostname 2>/dev/null" 2>/dev/null || true)
-
-  REMOTE_SERIAL=""
-  REMOTE_MAC=""
-  DETECTED_HOSTNAME=""
-  {
-    read -r REMOTE_SERIAL || true
-    read -r REMOTE_MAC || true
-    read -r DETECTED_HOSTNAME || true
-  } <<< "$REMOTE_HW_INFO"
-
-  # Strip carriage returns and whitespace using pure bash
-  REMOTE_SERIAL="${REMOTE_SERIAL//[$'\r\n ']/}"
-  REMOTE_MAC="${REMOTE_MAC//[$'\r\n ']/}"
+  # Query remote node identity (hostname)
+  DETECTED_HOSTNAME=$(ssh $SSH_OPTS -o BatchMode=yes "${TARGET_USER}@${TARGET_IP}" \
+    "cat /etc/hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || hostname" 2>/dev/null || true)
   DETECTED_HOSTNAME="${DETECTED_HOSTNAME//[$'\r\n ']/}"
 
   # Map legacy detected hostname to current flake configuration
@@ -278,64 +272,114 @@ if [[ "$ACTION" != "build-only" && "$ACTION" != "build" && "$ACTION" != "image" 
     *) DETECTED_CONFIG="$DETECTED_HOSTNAME" ;;
   esac
 
-  # Known hardware registry: Serial / MAC / IP -> Designated Flake Configuration
-  HW_DESIGNATION=""
-  if [ "$REMOTE_SERIAL" = "00000000d81501cf" ] || [ "$REMOTE_MAC" = "b8:27:eb:15:01:cf" ] || [ "$TARGET_IP" = "192.168.1.11" ]; then
-    HW_DESIGNATION="kir-pi-primary"
-  elif [ "$REMOTE_SERIAL" = "0000000031098eaa" ] || [ "$REMOTE_MAC" = "b8:27:eb:09:8e:aa" ] || [ "$TARGET_IP" = "192.168.1.12" ]; then
-    HW_DESIGNATION="kir-pi-secondary"
-  elif [ "$REMOTE_SERIAL" = "1000000032d53d8a" ] || [ "$REMOTE_MAC" = "dc:a6:32:9b:7f:51" ] || [ "$TARGET_IP" = "100.71.110.64" ]; then
-    HW_DESIGNATION="ott-pi-primary"
-  fi
+  echo -e "  ${GREEN}✓ Connected!${NC} Detected node identity: ${BOLD}${DETECTED_CONFIG:-unknown}${NC} (hostname: ${DETECTED_HOSTNAME:-unknown})"
 
-  echo -e "  ${GREEN}✓ Connected!${NC} Hostname: ${BOLD}${DETECTED_HOSTNAME:-unknown}${NC}"
-  if [ -n "$REMOTE_SERIAL" ]; then
-    echo -e "  Hardware Serial: ${BOLD}${REMOTE_SERIAL}${NC} (MAC: ${REMOTE_MAC:-unknown})"
-  fi
-
-  if [ -n "$HW_DESIGNATION" ]; then
-    if [ -n "$TARGET_HOST" ] && [ "$TARGET_HOST" != "$HW_DESIGNATION" ]; then
-      if [ "$FORCE_DEPLOY" = "true" ]; then
-        echo -e "  ${YELLOW}WARNING: Force flag enabled! Overriding hardware designation '${HW_DESIGNATION}' with '${TARGET_HOST}'.${NC}"
-      else
-        echo -e "\n${RED}${BOLD}================================================================${NC}" >&2
-        echo -e "${RED}${BOLD}  SAFETY CHECK FAILED: HARDWARE / PROFILE MISMATCH!             ${NC}" >&2
-        echo -e "${RED}${BOLD}================================================================${NC}" >&2
-        echo -e "  Target Device IP : ${BOLD}${TARGET_IP}${NC}" >&2
-        echo -e "  Hardware Serial  : ${BOLD}${REMOTE_SERIAL:-unknown}${NC} (MAC: ${REMOTE_MAC:-unknown})" >&2
-        echo -e "  Hardware Identity: ${GREEN}${BOLD}${HW_DESIGNATION}${NC}" >&2
-        echo -e "  Attempted Deploy : ${RED}${BOLD}${TARGET_HOST}${NC}" >&2
-        echo -e "" >&2
-        echo -e "  Refusing to deploy '${TARGET_HOST}' onto '${HW_DESIGNATION}' hardware." >&2
-        echo -e "  Deploying secondary onto primary (or vice-versa) causes Keepalived VRRP" >&2
-        echo -e "  split-brain (both claiming VIP 192.168.1.9) and disables primary services." >&2
-        echo -e "" >&2
-        echo -e "  To correctly update this node, run:" >&2
-        echo -e "    ${BOLD}./docker-rebuild.sh ${HW_DESIGNATION} ${ACTION}${NC}" >&2
-        echo -e "  (To bypass this protection, set FORCE_DEPLOY=true or pass --force)" >&2
-        echo -e "${RED}${BOLD}================================================================${NC}" >&2
-        exit 1
-      fi
+  # If target configuration was not explicitly provided, default to the detected configuration
+  if [ -z "$TARGET_HOST" ]; then
+    if [ -n "$DETECTED_CONFIG" ]; then
+      TARGET_HOST="$DETECTED_CONFIG"
+      echo -e "  Using detected configuration: ${BOLD}${TARGET_HOST}${NC}"
     else
-      if [ -n "$DETECTED_CONFIG" ] && [ "$DETECTED_CONFIG" != "$HW_DESIGNATION" ]; then
-        echo -e "  ${YELLOW}Notice: Node reported hostname '${DETECTED_HOSTNAME}', but hardware identity is '${HW_DESIGNATION}'.${NC}"
-        echo -e "  ${YELLOW}Auto-correcting configuration to: ${BOLD}${HW_DESIGNATION}${NC}"
-      fi
-      TARGET_HOST="$HW_DESIGNATION"
+      echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
+      echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh <CONFIG_NAME> boot $TARGET_IP)" >&2
+      exit 1
     fi
-  else
-    # Unknown hardware fallback
-    if [ -z "$TARGET_HOST" ]; then
-      if [ -n "$DETECTED_CONFIG" ]; then
-        TARGET_HOST="$DETECTED_CONFIG"
+  fi
+
+  # Check if the target node is kir-pi-primary
+  IS_TARGET_PRIMARY=false
+  if [ "$DETECTED_CONFIG" = "kir-pi-primary" ] || [ "$TARGET_IP" = "192.168.1.11" ]; then
+    IS_TARGET_PRIMARY=true
+  fi
+
+  # Validation: Warn and require extra confirmation if a mismatch occurs, especially for kir-pi-primary
+  if [ "$TARGET_HOST" != "$DETECTED_CONFIG" ] && [ -n "$DETECTED_CONFIG" ]; then
+    if [ "$IS_TARGET_PRIMARY" = "true" ]; then
+      echo -e "\n${RED}${BOLD}================================================================${NC}" >&2
+      echo -e "${RED}${BOLD}  WARNING: HIGH-RISK CONFIGURATION CHANGE ON PRIMARY NODE!      ${NC}" >&2
+      echo -e "${RED}${BOLD}================================================================${NC}" >&2
+      echo -e "  Target Device IP  : ${BOLD}${TARGET_IP}${NC}" >&2
+      echo -e "  Current Identity  : ${GREEN}${BOLD}kir-pi-primary${NC} (hostname: ${DETECTED_HOSTNAME:-unknown})" >&2
+      echo -e "  Requested Profile : ${RED}${BOLD}${TARGET_HOST}${NC}" >&2
+      echo -e "" >&2
+      echo -e "  CAUTION: You are requesting to deploy '${TARGET_HOST}' onto '${DETECTED_CONFIG}'!" >&2
+      echo -e "  The primary node runs vital cluster infrastructure:" >&2
+      echo -e "    - Keepalived VRRP Master (VIP 192.168.1.9)" >&2
+      echo -e "    - Matter Hub (Home Assistant integration)" >&2
+      echo -e "    - Network UPS Tools (NUT server for CyberPower UPS)" >&2
+      echo -e "    - SWAG reverse proxy" >&2
+      echo -e "" >&2
+      echo -e "  Deploying '${TARGET_HOST}' here will replace or disable these primary services" >&2
+      echo -e "  and could cause Keepalived VRRP split-brain or cluster network disruption." >&2
+      echo -e "${RED}${BOLD}================================================================${NC}" >&2
+    else
+      echo -e "\n${YELLOW}${BOLD}================================================================${NC}" >&2
+      echo -e "${YELLOW}${BOLD}  WARNING: NODE IDENTITY MISMATCH DETECTED!                     ${NC}" >&2
+      echo -e "${YELLOW}${BOLD}================================================================${NC}" >&2
+      echo -e "  Target Device IP  : ${BOLD}${TARGET_IP}${NC}" >&2
+      echo -e "  Current Identity  : ${BOLD}${DETECTED_CONFIG}${NC} (hostname: ${DETECTED_HOSTNAME:-unknown})" >&2
+      echo -e "  Requested Profile : ${BOLD}${TARGET_HOST}${NC}" >&2
+      echo -e "" >&2
+      echo -e "  You are requesting to deploy '${TARGET_HOST}' onto node '${DETECTED_CONFIG}'." >&2
+      echo -e "${YELLOW}${BOLD}================================================================${NC}" >&2
+    fi
+
+    # Confirmation check: flag or interactive prompt
+    if [ "$CONFIRM_DEPLOY" = "true" ] || [ "$FORCE_DEPLOY" = "true" ]; then
+      echo -e "  ${YELLOW}Notice: Confirmation flag provided (--confirm / --force). Proceeding with deployment.${NC}\n"
+    else
+      USER_CONFIRM=""
+      PROMPT_TEXT="Are you SURE you want to deploy '${TARGET_HOST}' onto '${DETECTED_CONFIG}'? Type 'yes' to proceed: "
+      if [ -c /dev/tty ]; then
+        echo -e -n "\n${BOLD}${YELLOW}${PROMPT_TEXT}${NC}" > /dev/tty
+        read -r USER_CONFIRM < /dev/tty || true
+      elif [ -t 0 ]; then
+        echo -e -n "\n${BOLD}${YELLOW}${PROMPT_TEXT}${NC}"
+        read -r USER_CONFIRM || true
       else
-        echo -e "${RED}Error: Could not auto-detect node hostname from ${TARGET_IP}.${NC}" >&2
-        echo -e "Please specify target configuration name (e.g. ./docker-rebuild.sh <CONFIG_NAME> boot $TARGET_IP)" >&2
+        echo -e "\n${RED}Error: Configuration mismatch detected in non-interactive environment.${NC}" >&2
+        echo -e "To proceed without interactive confirmation, pass ${BOLD}--confirm${NC} (or ${BOLD}--force${NC} / ${BOLD}CONFIRM_DEPLOY=true${NC})." >&2
         exit 1
       fi
-    elif [ "$TARGET_HOST" != "$DETECTED_CONFIG" ] && [ "$TARGET_HOST" != "$DETECTED_HOSTNAME" ]; then
-      echo -e "  ${YELLOW}Notice: Node reported hostname '${DETECTED_HOSTNAME}', but '${TARGET_HOST}' was explicitly set.${NC}"
-      echo -e "  Using explicit configuration: ${BOLD}${TARGET_HOST}${NC}"
+
+      if [ "$USER_CONFIRM" = "yes" ]; then
+        echo -e "  ${GREEN}✓ Confirmation received ('yes'). Proceeding with deployment to ${TARGET_HOST}...${NC}\n"
+      else
+        echo -e "\n${RED}Deployment aborted by user (received '${USER_CONFIRM}', expected 'yes').${NC}\n" >&2
+        exit 1
+      fi
+    fi
+  elif [ "$IS_TARGET_PRIMARY" = "true" ] && [ "$TARGET_HOST" != "kir-pi-primary" ]; then
+    echo -e "\n${RED}${BOLD}================================================================${NC}" >&2
+    echo -e "${RED}${BOLD}  WARNING: ATTEMPTING TO DEPLOY NON-PRIMARY ON 192.168.1.11!   ${NC}" >&2
+    echo -e "${RED}${BOLD}================================================================${NC}" >&2
+    echo -e "  Target Device IP  : ${BOLD}${TARGET_IP}${NC} (Designated primary IP)" >&2
+    echo -e "  Requested Profile : ${RED}${BOLD}${TARGET_HOST}${NC}" >&2
+    echo -e "${RED}${BOLD}================================================================${NC}" >&2
+
+    if [ "$CONFIRM_DEPLOY" = "true" ] || [ "$FORCE_DEPLOY" = "true" ]; then
+      echo -e "  ${YELLOW}Notice: Confirmation flag provided (--confirm / --force). Proceeding.${NC}\n"
+    else
+      USER_CONFIRM=""
+      PROMPT_TEXT="Are you SURE you want to deploy '${TARGET_HOST}' onto 192.168.1.11? Type 'yes' to proceed: "
+      if [ -c /dev/tty ]; then
+        echo -e -n "\n${BOLD}${YELLOW}${PROMPT_TEXT}${NC}" > /dev/tty
+        read -r USER_CONFIRM < /dev/tty || true
+      elif [ -t 0 ]; then
+        echo -e -n "\n${BOLD}${YELLOW}${PROMPT_TEXT}${NC}"
+        read -r USER_CONFIRM || true
+      else
+        echo -e "\n${RED}Error: Attempting to deploy '${TARGET_HOST}' onto 192.168.1.11 in non-interactive environment.${NC}" >&2
+        echo -e "To proceed without interactive confirmation, pass ${BOLD}--confirm${NC} (or ${BOLD}--force${NC})." >&2
+        exit 1
+      fi
+
+      if [ "$USER_CONFIRM" = "yes" ]; then
+        echo -e "  ${GREEN}✓ Confirmation received ('yes'). Proceeding...${NC}\n"
+      else
+        echo -e "\n${RED}Deployment aborted by user.${NC}\n" >&2
+        exit 1
+      fi
     fi
   fi
 else
