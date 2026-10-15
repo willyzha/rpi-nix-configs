@@ -18,5 +18,6 @@
     (import ./rpi-check-update.nix { inherit pkgs; })
     (import ./rpi-vrrp-status.nix { inherit pkgs; })
     (import ./rpi-services-status.nix { inherit pkgs; })
+    (import ./rpi-wg-client.nix { inherit pkgs; })
   ];
 }

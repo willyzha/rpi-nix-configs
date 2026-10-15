@@ -23,12 +23,19 @@
       # Generate with: wg genkey > /persist/secrets/wireguard/private.key
       privateKeyFile = "/persist/secrets/wireguard/private.key";
       peers = [
-        # Example peer configuration:
-        # {
-        #   publicKey = "...";
-        #   allowedIPs = [ "10.13.13.2/32" ];
-        # }
+        # Static peers can be defined here, or generated dynamically via 'sudo rpi-wg-client'
       ];
+
+      # Automatically restore all client peers saved in /persist/secrets/wireguard/peers on boot
+      postSetup = ''
+        if [ -d /persist/secrets/wireguard/peers ]; then
+          for peer_file in /persist/secrets/wireguard/peers/*.conf; do
+            if [ -f "$peer_file" ]; then
+              ${pkgs.wireguard-tools}/bin/wg addconf wg0 "$peer_file" 2>/dev/null || true
+            fi
+          done
+        fi
+      '';
     };
   };
 

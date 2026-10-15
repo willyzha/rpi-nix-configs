@@ -179,6 +179,7 @@
     restic
     rclone
     wireguard-tools
+    qrencode
     psmisc
     lsof
   ];
