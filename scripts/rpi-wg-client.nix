@@ -68,7 +68,7 @@ EOF
       ip=$(grep -E '^[[:space:]]*Address[[:space:]]*=' "$f" | cut -d= -f2 | tr -d ' ' || echo "unknown")
       local pub=""
       if [ -f "$PEERS_DIR/$name.conf" ]; then
-        pub=$(grep -E '^[[:space:]]*PublicKey[[:space:]]*=' "$PEERS_DIR/$name.conf" | cut -d= -f2 | tr -d ' ' || echo "")
+        pub=$(grep -E '^[[:space:]]*PublicKey[[:space:]]*=' "$PEERS_DIR/$name.conf" | cut -d= -f2- | tr -d '\r\n[:space:]' || echo "")
       fi
 
       local active="Offline"
@@ -94,7 +94,7 @@ EOF
 
     if [ -f "$peer_conf" ]; then
       local pub
-      pub=$(grep -E '^[[:space:]]*PublicKey[[:space:]]*=' "$peer_conf" | cut -d= -f2 | tr -d ' ' || echo "")
+      pub=$(grep -E '^[[:space:]]*PublicKey[[:space:]]*=' "$peer_conf" | cut -d= -f2- | tr -d '\r\n[:space:]' || echo "")
       if [ -n "$pub" ] && command -v ${pkgs.wireguard-tools}/bin/wg >/dev/null 2>&1; then
         ${pkgs.wireguard-tools}/bin/wg set wg0 peer "$pub" remove 2>/dev/null || true
       fi
