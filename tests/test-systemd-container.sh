@@ -168,6 +168,7 @@ for host in "${TARGET_HOSTS[@]}"; do
     bash -n "${toplevel}/sw/bin/rpi-rebuild"
     bash -n "${toplevel}/sw/bin/rpi-set-cloudflare"
     bash -n "${toplevel}/sw/bin/rpi-add-ssh-key"
+    bash -n "${toplevel}/sw/bin/rpi-wg-client"
 
     echo "    [6] Validating Tailscale binary version..."
     TS_VER=$("${toplevel}/sw/bin/tailscale" version | head -n 1)

@@ -364,7 +364,7 @@ A dedicated integration test runner ([`tests/test-systemd-container.sh`](tests/t
 3. **In-Container Activation**: Boots the activation script in an isolated container environment.
 4. **Starter Secret Stubs**: Runs `rpi-init-secrets`, verifies `0700` secret directory permissions, and validates that all required secret files and starter keypairs exist so no services crash on first boot.
 5. **Onboarding Check**: Executes `rpi-onboard --check` non-interactively to ensure all secrets are accounted for.
-6. **Utility Syntax**: Validates bash syntax (`bash -n`) across all custom management scripts (`rpi-check-update`, `rpi-mqtt-monitor`, `rpi-persist-save`, `rpi-services-status`, `rpi-rebuild`).
+6. **Utility Syntax**: Validates bash syntax (`bash -n`) across all custom management scripts (`rpi-check-update`, `rpi-mqtt-monitor`, `rpi-persist-save`, `rpi-services-status`, `rpi-rebuild`, `rpi-wg-client`).
 7. **Service Unit Declarations**: Verifies that all expected systemd unit files are declared and compiled into the target system profile.
 
 ### 2. Daily GitHub Actions Workflow (Zero-Waste Gating)
