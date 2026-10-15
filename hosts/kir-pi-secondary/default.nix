@@ -18,7 +18,7 @@
     # In-Kernel WireGuard VPN server (0 MB daemon RAM, runs directly in Linux kernel)
     wireguard.interfaces.wg0 = {
       ips = [ "10.13.13.1/24" ];
-      listenPort = 51820;
+      listenPort = 51821;
       # Load private key from persistent storage (untracked by git):
       # Generate with: wg genkey > /persist/secrets/wireguard/private.key
       privateKeyFile = "/persist/secrets/wireguard/private.key";

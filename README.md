@@ -22,7 +22,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 
 ### `kir-pi-secondary` (`kir-pi-secondary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
-  - [**WireGuard**](https://www.wireguard.com/): VPN server running via kernel module (Port `51820/udp`, `10.13.13.1/24`).
+  - [**WireGuard**](https://www.wireguard.com/): VPN server running via kernel module (Port `51821/udp`, `10.13.13.1/24`).
   - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
