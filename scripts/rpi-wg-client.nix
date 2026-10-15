@@ -32,11 +32,14 @@ Options:
   -l, --list         List all configured clients and IP allocations
   -d, --delete <NAME> Remove a client and revoke its access
   --ip <OCTET>       Manually specify host IP octet (e.g. 5 for 10.13.13.5)
+  --endpoint <HOST>  Specify server endpoint (e.g. wzhang.dev or 192.168.1.12)
+  --local            Use local Pi IP (192.168.1.12) as endpoint for on-prem LAN
   --full-tunnel      Route all client internet traffic (AllowedIPs = 0.0.0.0/0)
   -h, --help         Display this help message
 
 Examples:
-  sudo rpi-wg-client phone               # Generate client 'phone' (shows QR + config)
+  sudo rpi-wg-client phone               # Generate client 'phone' (default WAN endpoint)
+  sudo rpi-wg-client phone --local       # Generate client for local Wi-Fi / LAN testing
   sudo rpi-wg-client phone --qr          # Generate or display QR code only
   sudo rpi-wg-client --show phone        # View existing client 'phone' QR & config
   sudo rpi-wg-client --list              # List all clients
@@ -147,6 +150,8 @@ EOF
   CLIENT_NAME=""
   OUTPUT_MODE="both"
   CUSTOM_IP=""
+  CUSTOM_ENDPOINT=""
+  LOCAL_ENDPOINT=false
   FULL_TUNNEL=false
 
   while [ $# -gt 0 ]; do
@@ -195,6 +200,19 @@ EOF
       --ip)
         shift
         CUSTOM_IP="$1"
+        shift
+        ;;
+      --endpoint)
+        shift
+        if [ $# -eq 0 ]; then
+          echo "Error: --endpoint requires an address." >&2
+          exit 1
+        fi
+        CUSTOM_ENDPOINT="$1"
+        shift
+        ;;
+      --local)
+        LOCAL_ENDPOINT=true
         shift
         ;;
       --full-tunnel)
@@ -249,22 +267,34 @@ EOF
     exit 1
   fi
 
-  # Auto-detect Server Endpoint (Dynamic DNS / Public Domain)
-  SERVER_ENDPOINT=""
-  if [ -f "/persist/secrets/swag.env" ]; then
-    SERVER_ENDPOINT=$(grep -E '^[[:space:]]*URL=' /persist/secrets/swag.env | cut -d= -f2- | tr -d '\r\n[:space:]' || true)
-  fi
-  if [ -z "$SERVER_ENDPOINT" ] && [ -f "/persist/secrets/cloudflare.env" ]; then
-    SERVER_ENDPOINT=$(grep -E '^[[:space:]]*CLOUDFLARE_DOMAINS=' /persist/secrets/cloudflare.env | head -n 1 | awk '{gsub(/["\047]/, ""); print $1}' || true)
-  fi
-  if [ -z "$SERVER_ENDPOINT" ]; then
-    SERVER_ENDPOINT="wzhang.dev"
-  fi
-
   SERVER_PORT="51820"
   if command -v ${pkgs.wireguard-tools}/bin/wg >/dev/null 2>&1; then
     ACTIVE_PORT=$(${pkgs.wireguard-tools}/bin/wg show wg0 listen-port 2>/dev/null || true)
     [ -n "$ACTIVE_PORT" ] && SERVER_PORT="$ACTIVE_PORT"
+  fi
+
+  if [ -n "$CUSTOM_ENDPOINT" ]; then
+    SERVER_ENDPOINT="$CUSTOM_ENDPOINT"
+  elif [ "$LOCAL_ENDPOINT" = "true" ]; then
+    SERVER_ENDPOINT="192.168.1.12"
+  else
+    # Auto-detect Server Endpoint (Dynamic DNS / Public Domain)
+    SERVER_ENDPOINT=""
+    if [ -f "/persist/secrets/swag.env" ]; then
+      SERVER_ENDPOINT=$(grep -E '^[[:space:]]*URL=' /persist/secrets/swag.env | cut -d= -f2- | tr -d '\r\n[:space:]' || true)
+    fi
+    if [ -z "$SERVER_ENDPOINT" ] && [ -f "/persist/secrets/cloudflare.env" ]; then
+      SERVER_ENDPOINT=$(grep -E '^[[:space:]]*CLOUDFLARE_DOMAINS=' /persist/secrets/cloudflare.env | head -n 1 | awk '{gsub(/["\047]/, ""); print $1}' || true)
+    fi
+    if [ -z "$SERVER_ENDPOINT" ]; then
+      SERVER_ENDPOINT="wzhang.dev"
+    fi
+  fi
+
+  if [[ "$SERVER_ENDPOINT" == *:* ]]; then
+    FULL_ENDPOINT="$SERVER_ENDPOINT"
+  else
+    FULL_ENDPOINT="$SERVER_ENDPOINT:$SERVER_PORT"
   fi
 
   # Determine Client IP Octet
@@ -308,7 +338,7 @@ EOF
 
   echo "==> Creating WireGuard profile for: $CLIENT_NAME"
   echo "    Assigned IP : $CLIENT_IP/32"
-  echo "    Endpoint    : $SERVER_ENDPOINT:$SERVER_PORT"
+  echo "    Endpoint    : $FULL_ENDPOINT"
   echo "    Allowed IPs : $ALLOWED_IPS"
 
   # Generate Client Keypair
@@ -324,7 +354,7 @@ DNS = 10.13.13.1
 
 [Peer]
 PublicKey = $SERVER_PUB
-Endpoint = $SERVER_ENDPOINT:$SERVER_PORT
+Endpoint = $FULL_ENDPOINT
 AllowedIPs = $ALLOWED_IPS
 PersistentKeepalive = 25
 EOF

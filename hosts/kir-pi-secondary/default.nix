@@ -37,6 +37,19 @@
         fi
       '';
     };
+
+    # NAT Masquerade so WireGuard clients can reach the LAN and Internet
+    nat = {
+      enable = true;
+      externalInterface = "eth0";
+      internalInterfaces = [ "wg0" ];
+    };
+  };
+
+  # Kernel IP forwarding and routing marks for WireGuard
+  boot.kernel.sysctl = {
+    "net.ipv4.ip_forward" = 1;
+    "net.ipv4.conf.all.src_valid_mark" = 1;
   };
 
   # ---------------------------------------------------------------------------
