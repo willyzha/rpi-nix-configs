@@ -101,7 +101,7 @@ EOF
       rm -f "$peer_conf"
     fi
 
-    rm -f "$client_conf" "$CLIENTS_DIR/$name.png"
+    rm -f "$client_conf"
     echo "==> Client '$name' removed successfully."
 
     if command -v rpi-persist-save >/dev/null 2>&1; then
@@ -120,18 +120,11 @@ EOF
     local name="$1"
     local mode="''${2:-both}"
     local client_conf="$CLIENTS_DIR/$name.conf"
-    local client_png="$CLIENTS_DIR/$name.png"
 
     if [ ! -f "$client_conf" ]; then
       echo "Error: Client config '$client_conf' not found." >&2
       echo "Use 'rpi-wg-client --list' to see existing clients." >&2
       exit 1
-    fi
-
-    # Ensure companion PNG file exists
-    if [ ! -f "$client_png" ] && command -v ${pkgs.qrencode}/bin/qrencode >/dev/null 2>&1; then
-      ${pkgs.qrencode}/bin/qrencode -s 6 -m 2 -o "$client_png" < "$client_conf" 2>/dev/null || true
-      chmod 600 "$client_png" 2>/dev/null || true
     fi
 
     if [ "$mode" = "qr" ] || [ "$mode" = "both" ]; then
@@ -337,13 +330,6 @@ PersistentKeepalive = 25
 EOF
   chmod 600 "$CLIENT_CONF"
 
-  # Generate companion PNG image
-  CLIENT_PNG="$CLIENTS_DIR/$CLIENT_NAME.png"
-  if command -v ${pkgs.qrencode}/bin/qrencode >/dev/null 2>&1; then
-    ${pkgs.qrencode}/bin/qrencode -s 6 -m 2 -o "$CLIENT_PNG" < "$CLIENT_CONF" 2>/dev/null || true
-    chmod 600 "$CLIENT_PNG" 2>/dev/null || true
-  fi
-
   # 2. Write Server Peer Configuration File
   cat <<EOF > "$PEER_CONF"
 [Peer]
@@ -371,9 +357,8 @@ EOF
   echo ""
   echo "==> Setup Complete!"
   echo "  - To redisplay this QR code: sudo rpi-wg-client --show $CLIENT_NAME"
-  echo "  - To download configuration / QR image to your computer:"
+  echo "  - To download configuration to your computer:"
   echo "      scp root@$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname):$CLIENT_CONF ./"
-  echo "      scp root@$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname):$CLIENT_PNG ./"
   echo "  - Tip: If the QR code is still large for your terminal window, zoom out with Ctrl - / Cmd -"
   echo ""
 ''
