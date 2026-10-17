@@ -13,6 +13,7 @@
 
   networking = {
     hostName = "kir-pi-secondary";
+    firewall.checkReversePath = "loose"; # Required for Tailscale subnet router/exit node
     nameservers = [ "127.0.0.1" "192.168.1.9" "1.1.1.1" ];
 
     # In-Kernel WireGuard VPN server (0 MB daemon RAM, runs directly in Linux kernel)
@@ -52,7 +53,13 @@
 
   services.tailscale = {
     enable = true;
-    useRoutingFeatures = "server"; # Allow exit node/subnet router functionality
+    useRoutingFeatures = "both"; # Allow exit node/subnet router functionality
+    extraUpFlags = [
+      "--advertise-routes=192.168.1.0/24"
+      "--advertise-exit-node"
+      "--stateful-filtering=false"
+      "--accept-dns=false"
+    ];
   };
 
   # 1. Keepalived VRRP Backup Node (~4MB RAM, monitors port 443 for SWAG)

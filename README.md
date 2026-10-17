@@ -9,7 +9,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 ### `kir-pi-primary` (`kir-pi-primary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Local DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
-  - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
+  - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.1.0/24`) and exit node support.
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 105`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - [**NUT Server**](https://networkupstools.org/): Network UPS Tools daemon for CyberPower PR1500LCDRT2U battery backup (Port `3493`).
   - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
@@ -23,7 +23,7 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 ### `kir-pi-secondary` (`kir-pi-secondary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
   - [**WireGuard**](https://www.wireguard.com/): VPN server running via kernel module (Port `51821/udp`, `10.13.13.1/24`).
-  - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.2.0/24`) and exit node support.
+  - [**Tailscale**](https://tailscale.com/): Mesh VPN with subnet routing (`192.168.1.0/24`) and exit node support.
   - [**AdGuard Home**](https://github.com/AdguardTeam/AdGuardHome): Secondary DNS server and network-wide ad blocker (Port `53`, Web UI on port `3000`).
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - [**Cloudflare Dynamic DNS**](https://github.com/skud/cloudflare-dyndns): Redundant high-availability DDNS updater mirroring primary node with staggered check timers and zero SD wear.
@@ -258,9 +258,13 @@ Initial setup is fully automated using flashable SD card images released directl
    <summary><b>Enable on <code>kir-pi-primary</code></b> (Subnet Router + Exit Node)</summary>
 
    ```bash
-   sudo tailscale up --advertise-exit-node --accept-routes
+   sudo tailscale up --advertise-exit-node --advertise-routes=192.168.1.0/24
    sudo rpi-persist-save tailscale
    ```
+
+   > **Subnet Route Approval**:
+   > 1. Go to your [Tailscale Admin Console](https://login.tailscale.com/admin/machines).
+   > 2. Click **...** next to **`kir-pi-primary`** -> **Edit route settings...** -> check **`192.168.1.0/24`**.
 
    </details>
 
@@ -282,12 +286,15 @@ Initial setup is fully automated using flashable SD card images released directl
    </details>
 
    <details>
-   <summary><b>Enable on <code>kir-pi-secondary</code></b> (Subnet Router + Exit Node)</summary>
+   <summary><b>Enable on <code>kir-pi-secondary</code></b> (Subnet Router + Exit Node - HA Redundancy)</summary>
 
    ```bash
-   sudo tailscale up --advertise-exit-node --accept-routes
+   sudo tailscale up --advertise-exit-node --advertise-routes=192.168.1.0/24
    sudo rpi-persist-save tailscale
    ```
+
+   > **Subnet Route Approval**:
+   > In [Tailscale Admin Console](https://login.tailscale.com/admin/machines), click **...** next to **`kir-pi-secondary`** -> **Edit route settings...** -> check **`192.168.1.0/24`** for high-availability automatic failover.
 
    </details>
 
