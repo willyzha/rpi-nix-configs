@@ -131,7 +131,7 @@ EOF
   mkdir -p "$KEY_DIR"
   chmod 755 "$KEY_DIR"
   touch "$USER_KEY_FILE"
-  chmod 600 "$USER_KEY_FILE"
+  chmod 644 "$USER_KEY_FILE"
   chown root:root "$USER_KEY_FILE"
 
   # Check if key is already installed
