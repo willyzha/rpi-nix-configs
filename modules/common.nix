@@ -150,6 +150,7 @@
     extraGroups = [ "wheel" "docker" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFz7zweHTuKuHEQv7xtzH8I3T1Ch+Mafg+S4a00hcniR willyzha@willy-dev"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILFDpEzQzYSl1EA2luTTBBzCOurDBotpNIOaTUII7R1a willyzha@mint-vm"
     ];
   };
 
