@@ -125,9 +125,24 @@ EOF
     echo "Found $CONF_COUNT active proxy configuration file(s) in:"
     echo "  $PROXY_CONFS_DIR"
     ls -1 "$PROXY_CONFS_DIR"/*.conf 2>/dev/null | sed 's/^/  - /'
+
+    if [ -f "$PROXY_CONFS_DIR/unraid.subdomain.conf" ]; then
+      echo
+      echo "  ⚠️ WARNING: unraid.subdomain.conf detected without enforced authentication!"
+      echo "     Exposing Unraid directly to WAN is strongly discouraged due to WebGUI/PHP CVEs."
+      echo "     Access Unraid via Tailscale/WireGuard or rename to unraid.subdomain.conf.disabled."
+    fi
   fi
 
-  # 5. Ensure logrotate stub files exist (required by Docker volume mounts to prevent exit status 125)
+  # 5. Security Hardening: Disable internal PHP execution in default.conf (pure reverse proxy mode)
+  SITE_CONF="/persist/docker/swag/config/nginx/site-confs/default.conf"
+  if [ -f "$SITE_CONF" ]; then
+    echo "==> Hardening Nginx site configuration (disabling PHP execution)..."
+    sed -i 's/index index.html index.htm index.php;/index index.html index.htm;/g' "$SITE_CONF"
+    sed -i 's/fastcgi_pass 127\.0\.0\.1:9000;/return 404; # disabled PHP-FPM for security/g' "$SITE_CONF"
+  fi
+
+  # 6. Ensure logrotate stub files exist (required by Docker volume mounts to prevent exit status 125)
   LOGROTATE_DIR="/persist/docker/swag/logrotate"
   mkdir -p "$LOGROTATE_DIR/logrotate.d"
   touch "$LOGROTATE_DIR/logrotate.conf" \
@@ -137,10 +152,10 @@ EOF
         "$LOGROTATE_DIR/logrotate.d/php-fpm"
 
   echo
-  echo "==> SWAG credentials and volume stubs successfully created in /persist."
+  echo "==> SWAG credentials, hardened Nginx configs, and volume stubs successfully created in /persist."
   if command -v rpi-persist-save >/dev/null 2>&1; then
     echo "==> Committing SWAG secrets and proxy config to SD card..."
-    rpi-persist-save secrets/swag.env secrets/cloudflare.env docker/swag/config/dns-conf docker/swag/config/nginx/proxy-confs
+    rpi-persist-save secrets/swag.env secrets/cloudflare.env docker/swag/config/dns-conf docker/swag/config/nginx/proxy-confs docker/swag/config/nginx/site-confs
   fi
   if systemctl list-unit-files | grep -q cloudflare-dyndns.service; then
     echo "==> Triggering cloudflare-dyndns.service..."
