@@ -134,14 +134,22 @@ pkgs.writeShellScriptBin "rpi-rebuild" ''
     exit 1
   fi
 
-  # Pre-requisite 4: Stop heavy services to free maximum physical RAM (~700MB+ free)
+  # Pre-requisite 4: Ensure resilient DNS resolution during rebuild
+  echo "==> Ensuring resilient DNS resolution..."
+  if [ -w /run/resolvconf/resolv.conf ]; then
+    if ! grep -q "1.1.1.1" /run/resolvconf/resolv.conf 2>/dev/null; then
+      echo "nameserver 1.1.1.1" >> /run/resolvconf/resolv.conf
+    fi
+  fi
+
+  # Pre-requisite 5: Stop heavy services to free maximum physical RAM (~700MB+ free)
+  # Note: adguardhome is intentionally excluded so local and node DNS remain functional
   CANDIDATE_SERVICES=(
     "docker-swag.service"
     "docker-upswake.service"
     "docker.service"
     "docker.socket"
     "containerd.service"
-    "adguardhome.service"
     "rpi-mqtt-monitor.service"
     "keepalived.service"
     "upsd.service"
