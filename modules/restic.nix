@@ -3,7 +3,7 @@
 let
   hostName = config.networking.hostName;
   calendarTime =
-    if hostName == "kir-pi-secondary" then "03:30"
+    if hostName == "kir-pi-secondary" then "04:30"
     else "03:00";
 
   postBackupScript = pkgs.writeShellScript "restic-post-backup" ''
@@ -28,6 +28,8 @@ in
     ];
     exclude = [
       "/persist/var/lib/docker"
+      "/persist/var/cache"
+      "/persist/var/lib/AdGuardHome/data/querylog.json*"
     ];
     extraBackupArgs = [
       "--no-cache"
@@ -43,7 +45,22 @@ in
     ];
   };
 
-  systemd.services."restic-backups-persist".serviceConfig.ExecStopPost = [
-    "-${postBackupScript}"
-  ];
+  # Resource throttling & safeguards: prevent Restic from pinning CPU/RAM and starving the 14s watchdog
+  systemd.services."restic-backups-persist" = {
+    serviceConfig = {
+      Nice = 19;
+      CPUSchedulingPolicy = "idle";
+      IOSchedulingClass = "idle";
+      IOSchedulingPriority = 7;
+      MemoryMax = "250M";
+      MemoryHigh = "180M";
+      ExecStopPost = [
+        "-${postBackupScript}"
+      ];
+    };
+    environment = {
+      GOMAXPROCS = "1";
+      GOGC = "20";
+    };
+  };
 }

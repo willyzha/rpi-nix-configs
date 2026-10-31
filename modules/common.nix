@@ -42,6 +42,9 @@
   systemd.watchdog.runtimeTime = "14s"; # systemd will ping the WDT every 7s
   systemd.watchdog.rebootTime = "14s";
   systemd.watchdog.kexecTime = "14s";
+  systemd.extraConfig = ''
+    ShutdownWatchdogSec=60s
+  '';
 
   zramSwap = {
     enable = true;

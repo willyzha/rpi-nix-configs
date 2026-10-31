@@ -18,7 +18,6 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Reverse proxy with automated SSL certificate generation (Port `443`).
   - [**UPSWake**](https://github.com/TheDarthMole/UPSWake): Wake-on-LAN service polling NUT server status.
-  - [**Home Assistant Matter Hub**](https://github.com/riddix/home-assistant-matter-hub): Matter bridge exposing Home Assistant entities to Apple Home/Google Home/Alexa (Web UI on port `8482`, Matter Commissioning on port `5540`).
 
 ### `kir-pi-secondary` (`kir-pi-secondary.local` - Raspberry Pi 3 Model B)
 - **Native Services**:
@@ -28,9 +27,10 @@ Declarative NixOS configurations for Raspberry Pi nodes, built with **zero-wear 
   - [**Keepalived**](https://www.keepalived.org/): VRRP non-preemptive sticky failover (`priority 100`, VMAC `vrrp.51`, VIP `192.168.1.9`) monitoring reverse proxy health.
   - [**Cloudflare Dynamic DNS**](https://github.com/skud/cloudflare-dyndns): Redundant high-availability DDNS updater mirroring primary node with staggered check timers and zero SD wear.
   - [**MQTT Telemetry Monitor**](docs/monitoring.md): Lightweight native Home Assistant telemetry reporter (`rpi-mqtt-monitor`) publishing CPU, memory, temperature, uptime, VRRP role, and service health.
-  - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`03:30` daily timer).
+  - [**Restic Backup**](https://restic.net/): Automated daily snapshot backup of `/persist` to Dropbox via Rclone backend (`04:30` daily timer).
 - **Docker Containers**:
   - [**SWAG**](https://github.com/linuxserver/docker-swag): Failover reverse proxy (Port `443`).
+  - [**Home Assistant Matter Hub**](https://github.com/riddix/home-assistant-matter-hub): Matter bridge exposing Home Assistant entities to Apple Home/Google Home/Alexa (Web UI on port `8482`, Matter Commissioning on port `5540`, allocated to secondary node to balance memory load with primary NUT server).
 
 ### `ott-pi-primary` (Remote Node - Raspberry Pi 4 Model B)
 - **Native Services**:

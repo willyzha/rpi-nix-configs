@@ -26,6 +26,12 @@
       "console=ttyS0,115200n8"
       "console=tty1"
     ];
+
+    # Hardware watchdog safeguard: nowayout ensures the BCM2835 watchdog cannot be stopped
+    # once armed, guaranteeing an automatic hardware reset if kernel/shutdown hangs.
+    extraModprobeConfig = ''
+      options bcm2835_wdt nowayout=1
+    '';
   };
 
   # Fix: modprobe: FATAL: Module ahci not found in directory

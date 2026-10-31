@@ -99,5 +99,30 @@
   # 2. Cloudflare Dynamic DNS Updater (Secondary Node - Redundant HA)
   services.cloudflare-ddns.enable = true;
 
+  # ---------------------------------------------------------------------------
+  # Docker Containers
+  # ---------------------------------------------------------------------------
+  virtualisation.oci-containers = {
+    backend = "docker";
+    containers = {
+      # Home Assistant Matter Hub (Matter bridge to Apple Home, Google Home, Alexa)
+      # Allocated to secondary node to balance memory load with primary (NUT/UPS)
+      matter-hub = {
+        image = "ghcr.io/riddix/home-assistant-matter-hub:latest";
+        autoStart = true;
+        environmentFiles = [ "/persist/secrets/matter-hub.env" ];
+        environment = {
+          HAMH_LOG_LEVEL = "info";
+          HAMH_HTTP_PORT = "8482";
+          NODE_OPTIONS = "--max-old-space-size=96";
+        };
+        volumes = [
+          "/persist/docker/ha-matter-hub:/data"
+        ];
+        extraOptions = [ "--network=host" ];
+      };
+    };
+  };
+
   system.stateVersion = "24.05";
 }
