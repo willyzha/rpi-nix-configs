@@ -94,6 +94,7 @@
         environment = {
           HAMH_LOG_LEVEL = "info";
           HAMH_HTTP_PORT = "8482";
+          NODE_OPTIONS = "--max-old-space-size=96";
         };
         volumes = [
           "/persist/docker/ha-matter-hub:/data"
