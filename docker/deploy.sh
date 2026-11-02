@@ -529,6 +529,12 @@ if [[ "$ACTION" != "dry-build" ]]; then
   ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "rm -f /run/rpi-check-update.cache 2>/dev/null; rpi-check-update --json >/dev/null 2>&1 || true"
 fi
 
+# Automated garbage collection: prune historical generations to keep only latest 3 while root is RW
+if [[ "$ACTION" == "switch" || "$ACTION" == "boot" ]]; then
+  echo -e "\n${GREEN}==> Pruning historical generations (retaining latest 3) and collecting garbage...${NC}"
+  ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "find /nix/var/nix/gcroots/auto -xtype l -delete 2>/dev/null || true; nix-env -p /nix/var/nix/profiles/system --delete-generations +3 2>/dev/null || true; nix-collect-garbage 2>&1 | tail -n 5 || true; docker image prune -f 2>/dev/null || true"
+fi
+
 # Commit any pending overlay changes to SD card if tool is installed
 ssh $SSH_OPTS "${TARGET_USER}@${TARGET_IP}" "if command -v rpi-persist-save >/dev/null 2>&1; then rpi-persist-save || true; fi"
 

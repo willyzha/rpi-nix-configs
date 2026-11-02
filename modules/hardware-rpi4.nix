@@ -19,7 +19,10 @@
 
     loader = {
       grub.enable = false;
-      generic-extlinux-compatible.enable = true;
+      generic-extlinux-compatible = {
+        enable = true;
+        configurationLimit = 3;
+      };
     };
 
     # Kernel parameters: use ttyS0 for GPIO serial and tty1 for display.
