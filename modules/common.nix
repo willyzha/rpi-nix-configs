@@ -154,6 +154,7 @@
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFz7zweHTuKuHEQv7xtzH8I3T1Ch+Mafg+S4a00hcniR willyzha@willy-dev"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILFDpEzQzYSl1EA2luTTBBzCOurDBotpNIOaTUII7R1a willyzha@mint-vm"
+      "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDL9q/0y4jysUhXe4FPcxT+R35yUP7U9/IBfIaqeCMQT2s5CmuEn7UviLKLwF+CjBektSuCNDkdCqOPs34GmC7VJ/TaIZKIJS3px0LlqAbEOqLN/Bz2Yjlk/Fsyyog9FT8mjWYMVFhiHagOSwkSphuYPlD18y58XAd6C87eKKJon+ttywpb6rymMrx6rwqWkHvNghGnF/HFnFBdfpt2bf17/aoOafMtfjSyMUroKyf41P9uRxs/pBmdD4deKXI9DuZYNjfoB/6VB27MfQRfon7EBwePdj6hMaBqIt4fGcSjQjSK3oIyyhpkH0HYib/xD5MTtBWCI5Lmq6zEZQbib2pZ2rToPyyO42dWCjBrhkKJ9eUr3LBsV2U35Po8HQvyZ/jiHBOgFazWm0Bl7I8M6kQRiIAoTaNdvoM+aaPqMSZ52uzf6UyVnt+uwpykjaY0aYFE/h7qRIkkvY7QoW3GZHrfdutjQsqP7idLtbCb0InTk+jThIT4MJu9IvtrrhQFthc= homeassistant-ottawa"
     ];
   };
 
