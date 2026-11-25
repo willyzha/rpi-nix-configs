@@ -28,31 +28,30 @@
   # Enable EarlyOOM to prevent RCU kernel stall during heavy memory pressure
   services.earlyoom = {
     enable = true;
-    freeMemThreshold = 5; # kill when < 5% RAM
-    freeSwapThreshold = 10; # kill when < 10% swap
+    freeMemThreshold = 10; # kill when < 10% RAM
+    freeSwapThreshold = 30; # kill when < 30% swap free (intervene before zram thrashing pegs CPU)
     extraArgs = [
       "--avoid" "^(sshd|tailscaled)$" # Prioritize keeping remote access alive
       "--prefer" "^(restic|docker)$" # Aggressively kill backup/docker if OOM
     ];
   };
 
-
   # Hardware Watchdog & Auto-Reboot on Kernel Panic
-  # BCM2835 WDT has a strict 15-second maximum timeout.
-  systemd.watchdog.runtimeTime = "14s"; # systemd will ping the WDT every 7s
-  systemd.watchdog.rebootTime = "14s";
-  systemd.watchdog.kexecTime = "14s";
-  systemd.extraConfig = ''
-    ShutdownWatchdogSec=60s
-  '';
+  # Note: Runtime watchdog pinging is relaxed on Pi 3B to prevent false-positive soft-resets
+  # which hang the BCM2837 bootloader (PMIC/LAN9514 not power-cycled).
+  systemd.watchdog.rebootTime = "30s";
+  systemd.watchdog.kexecTime = "30s";
 
   zramSwap = {
     enable = true;
-    algorithm = "zstd";
-    memoryPercent = 100;
+    algorithm = "lz4"; # lz4 has near-zero CPU overhead on Cortex-A53 compared to zstd
+    memoryPercent = 75; # Prevent zram compression buffer from exhausting real RAM
   };
 
-  # Prevent dirty page write spikes on slow SD cards from starving I/O and tripping the 14s watchdog
+  # Disable host logrotate on read-only root (Docker/Swag containers handle their own RAM logs)
+  services.logrotate.enable = lib.mkDefault false;
+
+  # Prevent dirty page write spikes on slow SD cards from starving I/O
   boot.kernel.sysctl = {
     "vm.dirty_background_bytes" = 16777216; # 16 MB: flush early in small increments
     "vm.dirty_bytes" = 33554432;            # 32 MB: throttle writes before dirty buffer grows too large

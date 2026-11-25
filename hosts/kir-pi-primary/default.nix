@@ -43,7 +43,9 @@
       vrrp_garp_master_refresh 60
     '';
     vrrpScripts.check_swag = {
-      script = "${pkgs.iproute2}/bin/ss -tlpn | ${pkgs.gnugrep}/bin/grep -q :443";
+      script = "${pkgs.writeShellScript "check-swag" ''
+        ${pkgs.iproute2}/bin/ss -tlpn | ${pkgs.gnugrep}/bin/grep -q :443
+      ''}";
       interval = 2;
       weight = -20;
       user = "root";
@@ -82,6 +84,7 @@
         "vendorid = 0764"
         "productid = 0601"
         "pollonly"
+        "pollinterval = 10"
       ];
     };
     upsd = {
